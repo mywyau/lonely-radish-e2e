@@ -1,0 +1,27 @@
+{
+  "name": "lonely-radish-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "check:staging": "node scripts/check-staging.mjs",
+    "seed:staging": "node scripts/seed-staging.mjs",
+    "auth:staging": "node scripts/create-auth-states.mjs",
+    "prepare:staging": "npm run check:staging && npm run seed:staging && npm run auth:staging",
+    "test:staging": "npm run check:staging && playwright test --project=chromium",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:smoke": "playwright test tests/smoke",
+    "report": "playwright show-report",
+    "install:browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.1.0",
+    "@types/pg": "^8.15.5",
+    "dotenv": "^17.2.1",
+    "pg": "^8.16.3",
+    "typescript": "^5.8.3"
+  }
+}
