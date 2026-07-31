@@ -18,7 +18,7 @@ Configure these additional Vercel Preview variables for the `staging` branch:
 - `SITE_URL` and `APP_BASE_URL`: the exact stable staging HTTPS origin
 - `STAGING_EMAIL_ALLOWLIST`: the three test-account email addresses, comma-separated
 
-Staging startup refuses a live Stripe secret, a deployment from the wrong Vercel environment/branch, mismatched Supabase URLs and database, or an empty email allowlist. Email addressed to anyone outside the allowlist is recorded as skipped and is never sent.
+Staging startup refuses a deployment from the wrong Vercel environment/branch, mismatched Supabase URLs and database, or an empty email allowlist. Email addressed to anyone outside the allowlist is recorded as skipped and is never sent. Stripe mode is controlled through the staging branch's Vercel variables rather than inferred from the key prefix.
 
 Use staging-only Auth0, Supabase, Upstash/QStash, Stripe test-mode, and other credentials. Apply database migrations before running the gate.
 
