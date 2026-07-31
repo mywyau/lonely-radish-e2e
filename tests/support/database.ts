@@ -1,10 +1,8 @@
 import pg from 'pg'
-import { env } from './env.js'
+import { assertStagingDatabaseTarget, env } from './env.js'
 
 export async function resetRelationshipPair(userA: string, userB: string): Promise<void> {
-  if (process.env.E2E_ALLOW_DATABASE_RESET !== 'true') {
-    throw new Error('Set E2E_ALLOW_DATABASE_RESET=true to confirm this is an isolated E2E database')
-  }
+  assertStagingDatabaseTarget()
   const client = new pg.Client({
     connectionString: env('E2E_DATABASE_URL'),
     ssl: process.env.E2E_DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
@@ -18,6 +16,8 @@ export async function resetRelationshipPair(userA: string, userB: string): Promi
       (sender_id=$1 and recipient_id=$2) or (sender_id=$2 and recipient_id=$1)`, [userA, userB])
     await client.query(`delete from blocks where
       (blocker_id=$1 and blocked_id=$2) or (blocker_id=$2 and blocked_id=$1)`, [userA, userB])
+    await client.query(`delete from reports where
+      (reporter_id=$1 and reported_id=$2) or (reporter_id=$2 and reported_id=$1)`, [userA, userB])
     await client.query(`delete from matches where
       (user_one_id=$1 and user_two_id=$2) or (user_one_id=$2 and user_two_id=$1)`, [userA, userB])
     await client.query('commit')

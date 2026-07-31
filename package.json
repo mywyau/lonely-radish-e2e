@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
+    "check:staging": "node scripts/check-staging.mjs",
+    "seed:staging": "node scripts/seed-staging.mjs",
+    "auth:staging": "node scripts/create-auth-states.mjs",
+    "prepare:staging": "npm run check:staging && npm run seed:staging && npm run auth:staging",
+    "test:staging": "npm run check:staging && playwright test --project=chromium",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test tests/smoke",
