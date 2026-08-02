@@ -5,7 +5,7 @@ import { openMember } from '../support/member.js'
 
 test('an existing member can replace activities with a listed and custom date idea', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
+  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID'), slug: env('E2E_MEMBER_A_SLUG') }
   const original = await activityPreferenceSnapshot(memberA.id)
@@ -14,7 +14,17 @@ test('an existing member can replace activities with a listed and custom date id
   const b = await openMember(browser, 'E2E_MEMBER_B_STATE')
 
   try {
+    const activitiesLoaded = a.page.waitForResponse(response => response.request().method() === 'GET'
+      && new URL(response.url()).pathname === '/api/preferences/activities')
     await a.page.goto('/preferences/activities')
+    const loadedResponse = await activitiesLoaded
+    expect(loadedResponse.ok()).toBe(true)
+    const loadedActivities = await loadedResponse.json() as { selected: Array<{ name: string }> }
+    if (loadedActivities.selected.length) {
+      await expect(a.page.getByRole('heading', {
+        name: new RegExp(`^Your interests \\(${loadedActivities.selected.length}/`),
+      })).toBeVisible()
+    }
     const selectedActivities = a.page.locator('section').filter({ hasText: /^Your interests \(/ }).first()
     if (await selectedActivities.isVisible()) {
       while (await selectedActivities.getByRole('button').count()) {
@@ -22,7 +32,9 @@ test('an existing member can replace activities with a listed and custom date id
       }
     }
 
-    await a.page.getByRole('button', { name: 'Culture', exact: true }).click()
+    const cultureGroup = a.page.getByRole('button', { name: 'Culture', exact: true })
+    await cultureGroup.click()
+    await expect(cultureGroup).toHaveAttribute('aria-expanded', 'true')
     await a.page.getByRole('button', { name: 'Gallery walks', exact: true }).click()
     await a.page.getByPlaceholder('Add something to Culture').fill(customActivity)
     await a.page.getByPlaceholder('Add something to Culture').locator('xpath=following-sibling::button').click()

@@ -79,14 +79,14 @@ the full gate, and do not deploy again while it is running. The branch URL can
 switch to a new deployment mid-run, leaving an already-open browser page with
 JavaScript chunk URLs that no longer exist.
 
-To watch Playwright complete the three Auth0 logins, use headed preparation:
+To watch Playwright complete the three Auth0 logins, use preparation:
 
 ```sh
-./scripts/prepare-staging.sh headed
+./scripts/prepare-staging.sh
 ```
 
 The visible login actions use a short delay. Override it when needed with, for
-example, `E2E_AUTH_SLOW_MO=500 ./scripts/prepare-staging.sh headed`.
+example, `E2E_AUTH_SLOW_MO=500 ./scripts/prepare-staging.sh`.
 
 This performs three idempotent tasks:
 
@@ -100,7 +100,7 @@ Generated IDs and browser states live under `.auth/`, which is ignored by Git.
 
 ```sh
 ./scripts/run-staging-tests.sh
-./scripts/run-staging-tests.sh headed
+./scripts/run-staging-tests.sh
 ./scripts/run-staging-tests.sh ui
 ```
 

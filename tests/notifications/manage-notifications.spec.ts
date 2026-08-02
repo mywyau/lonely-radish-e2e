@@ -8,7 +8,7 @@ import { openMember } from '../support/member.js'
 
 test('a member can manage notification history and email subscriptions', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
+  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME') }
@@ -47,11 +47,15 @@ test('a member can manage notification history and email subscriptions', async (
     expect((await preferencesSaved).ok()).toBe(true)
     await expect(a.page.getByRole('status').filter({ hasText: 'Email preferences saved.' })).toBeVisible()
 
+    const reloadedEmailPreferences = a.page.waitForResponse(response => response.request().method() === 'GET'
+      && new URL(response.url()).pathname === '/api/email/preferences')
     await a.page.reload()
-    await a.page.getByRole('button', { name: /What should we email you about/ }).click()
+    const reloadedResponse = await reloadedEmailPreferences
+    expect(reloadedResponse.ok()).toBe(true)
     await expect(a.page.getByLabel('New interests')).toBeChecked()
     await expect(a.page.getByLabel('Date plan updates')).toBeChecked()
     await expect(a.page.getByLabel('Matches and connections')).not.toBeChecked()
+    await a.page.getByRole('button', { name: /What should we email you about/ }).click()
 
     await a.page.getByRole('button', { name: 'Unsubscribe from all' }).click()
     await expect(a.page.getByRole('status').filter({ hasText: 'Unsubscribed from all email notifications.' })).toBeVisible()
