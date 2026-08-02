@@ -122,6 +122,7 @@ The Chromium gate covers:
 - proposal creation with a custom activity and structured public address;
 - recipient review, acceptance, decline, and explicit cancellation;
 - replacement proposals that preserve the confirmed date until accepted;
+- private post-date attendance and meet-again answers, including mutual, closed, and reconsidered outcomes;
 - reporting a profile without being forced to block;
 - blocking, unblocking, and profile visibility restoration;
 - pausing and resuming discovery;

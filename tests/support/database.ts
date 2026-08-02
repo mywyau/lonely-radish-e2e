@@ -411,6 +411,66 @@ export async function resetRelationshipPair(userA: string, userB: string): Promi
   }
 }
 
+export type PastConfirmedDateFixture = {
+  matchId: string
+  proposalId: string
+}
+
+export async function seedPastConfirmedDate(
+  userA: string,
+  userB: string,
+): Promise<PastConfirmedDateFixture> {
+  await resetRelationshipPair(userA, userB)
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    const [userOne, userTwo] = [userA, userB].sort()
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`e2e-post-date:${userOne}:${userTwo}`])
+    const match = await client.query(`insert into matches(user_one_id,user_two_id,status,matched_at)
+      values($1,$2,'active',now()-interval '8 days') returning id`, [userOne,userTwo])
+    const proposal = await client.query(`insert into date_proposals(
+        match_id,inviter_id,invitee_id,activity_label,invite_note,venue,venue_address,
+        venue_postcode,venue_details,status,public_venue_confirmed_at,confirmed_at
+      ) values($1,$2,$3,'Gallery walk','Synthetic post-date fixture','Barbican Centre',
+        'Silk Street, London','EC2Y 8DS','Beside the box office','accepted',now()-interval '8 days',
+        now()-interval '8 days') returning id`, [match.rows[0].id,userA,userB])
+    const time = await client.query(`insert into proposal_times(proposal_id,proposed_at,position)
+      values($1,now()-interval '7 days',1) returning id`, [proposal.rows[0].id])
+    await client.query(`update date_proposals set selected_time_id=$2 where id=$1`,
+      [proposal.rows[0].id,time.rows[0].id])
+    await client.query('commit')
+    return { matchId: match.rows[0].id, proposalId: proposal.rows[0].id }
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
+export async function postDateFixtureState(fixture: PastConfirmedDateFixture): Promise<{
+  matchStatus: string
+  followUpResponses: number
+  attendedResponses: number
+}> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const { rows } = await client.query(`select
+      (select status from matches where id=$1) as "matchStatus",
+      (select count(*)::int from date_follow_ups where proposal_id=$2) as "followUpResponses",
+      (select count(*)::int from date_outcome_responses
+        where proposal_id=$2 and outcome='happened') as "attendedResponses"`,
+    [fixture.matchId,fixture.proposalId])
+    return rows[0]
+  } finally {
+    await client.end()
+  }
+}
+
 export async function reopenInterestInbox(userId: string): Promise<void> {
   assertStagingDatabaseTarget()
   const client = databaseClient()
