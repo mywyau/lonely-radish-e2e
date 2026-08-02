@@ -128,7 +128,8 @@ async function signIn(accountKey, account) {
     await context.storageState({ path: statePath })
     console.log(`Created browser session for ${account.name}`)
   } catch (error) {
-    const diagnosticPath = resolve(process.cwd(), `.auth/login-failure-${accountKey}.png`)
+    const diagnosticPath = resolve(process.cwd(), `test-results/auth/login-failure-${accountKey}.png`)
+    await mkdir(dirname(diagnosticPath), { recursive: true })
     await page.screenshot({ path: diagnosticPath, fullPage: true }).catch(() => undefined)
     const message = (await rejectedCredentialsText(page)).slice(0, 300)
     const location = new URL(page.url())

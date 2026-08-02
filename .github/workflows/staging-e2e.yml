@@ -96,6 +96,5 @@ jobs:
           path: |
             playwright-report/
             test-results/
-            .auth/login-failure-*.png
           if-no-files-found: ignore
           retention-days: 14
