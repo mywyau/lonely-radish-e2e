@@ -1,5 +1,4 @@
-import { randomUUID } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Response } from '@playwright/test'
 import {
   clearInterestInboxFixtures,
   configureEligibilityScenario,
@@ -19,11 +18,13 @@ test('interest attempts enforce both members’ hard matching preferences', asyn
   await configureEligibilityScenario(memberA.id, memberB.id, 'compatible')
   const a = await openMember(browser, 'E2E_MEMBER_A_STATE')
 
-  async function attemptInterest() {
-    return a.page.request.post('/api/interests', {
-      data: { profileSlug: memberB.slug },
-      headers: { 'Idempotency-Key': randomUUID() },
-    })
+  async function attemptInterestVisibly(): Promise<Response> {
+    await a.page.goto(`/profiles/${memberB.slug}`)
+    const responsePromise = a.page.waitForResponse(response =>
+      response.url().includes('/api/interests') && response.request().method() === 'POST')
+    a.page.once('dialog', dialog => dialog.accept())
+    await a.page.getByRole('button', { name: /^Show interest/i }).click()
+    return responsePromise
   }
 
   try {
@@ -38,20 +39,23 @@ test('interest attempts enforce both members’ hard matching preferences', asyn
     for (const exclusion of exclusions) {
       await test.step(`${exclusion.label} can make the pair ineligible`, async () => {
         await configureEligibilityScenario(memberA.id, memberB.id, exclusion.scenario)
-        const response = await attemptInterest()
+        const response = await attemptInterestVisibly()
         expect(response.status()).toBe(404)
         expect((await response.json()).statusMessage).toBe('Profile not found')
+        await expect(a.page.getByRole('alert')
+          .filter({ hasText: 'You can’t show interest in this profile right now.' })).toBeVisible()
       })
     }
 
     await test.step('a mutually compatible pair can send interest', async () => {
       await configureEligibilityScenario(memberA.id, memberB.id, 'compatible')
-      const response = await attemptInterest()
+      const response = await attemptInterestVisibly()
       expect(response.ok()).toBe(true)
       expect(await response.json()).toMatchObject({
         interest: { profileSlug: memberB.slug },
         matched: false,
       })
+      await expect(a.page.getByText(/Interest sent to/i)).toBeVisible()
     })
   } finally {
     await Promise.allSettled([a.context.close()])
