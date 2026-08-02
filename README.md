@@ -28,6 +28,7 @@ Create a staging-only Auth0 Machine-to-Machine application and authorise it for 
 
 - `read:users`
 - `create:users`
+- `update:users`
 
 The staging Regular Web Application must use the same database connection and allow the staging callback URL:
 
@@ -35,7 +36,7 @@ The staging Regular Web Application must use the same database connection and al
 https://YOUR-STAGING-HOST/api/auth/callback
 ```
 
-Choose three dedicated test email addresses that you control. The seed script creates them if absent; it never deletes Auth0 users and never changes an existing account's password.
+Choose three dedicated test email addresses that you control. The seed script creates them if absent and reconciles existing database-connection test users to `E2E_TEST_PASSWORD`; it never deletes Auth0 users. Do not use personal or production identities.
 
 ### E2E safety configuration
 
@@ -47,6 +48,9 @@ E2E_BASE_URL=https://YOUR-STAGING-HOST
 E2E_ALLOWED_HOST=YOUR-STAGING-HOST
 E2E_PRODUCTION_URL=https://YOUR-PRODUCTION-HOST
 
+# Required only when Vercel Deployment Protection is enabled.
+E2E_VERCEL_BYPASS_SECRET=YOUR-AUTOMATION-BYPASS-SECRET
+
 E2E_DATABASE_URL=postgresql://...
 E2E_ALLOW_DATABASE_RESET=true
 E2E_EXPECTED_DATABASE_HOST=YOUR-EXACT-DATABASE-HOST
@@ -57,13 +61,27 @@ Also add the staging Auth0 Management credentials, connection name, one strong t
 
 Four independent checks must agree before anything can write to PostgreSQL: staging environment, application host, database host, and Supabase project reference. The scripts refuse the production application origin.
 
+If Vercel Deployment Protection is enabled, create a **Protection Bypass for
+Automation** secret in the Vercel project and set
+`E2E_VERCEL_BYPASS_SECRET`. Account preparation exchanges it for an ignored
+browser cookie, so the secret is not attached to requests sent to Auth0.
+
 ## Prepare the accounts
 
 After the `staging` branch deployment is ready:
 
 ```sh
-npm run prepare:staging
+./scripts/prepare-staging.sh
 ```
+
+To watch Playwright complete the three Auth0 logins, use headed preparation:
+
+```sh
+./scripts/prepare-staging.sh headed
+```
+
+The visible login actions use a short delay. Override it when needed with, for
+example, `E2E_AUTH_SLOW_MO=500 ./scripts/prepare-staging.sh headed`.
 
 This performs three idempotent tasks:
 
@@ -76,7 +94,9 @@ Generated IDs and browser states live under `.auth/`, which is ignored by Git.
 ## Run the release gate
 
 ```sh
-npm run test:staging
+./scripts/run-staging-tests.sh
+./scripts/run-staging-tests.sh headed
+./scripts/run-staging-tests.sh ui
 ```
 
 The Chromium gate covers:
@@ -92,7 +112,7 @@ The Chromium gate covers:
 Stripe Checkout is optional because it creates a real test-mode session:
 
 ```sh
-E2E_RUN_STRIPE_CHECKOUT=true npm run test:staging
+./scripts/run-staging-tests.sh stripe
 ```
 
 For local public smoke checks:

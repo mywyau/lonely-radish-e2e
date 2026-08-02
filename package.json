@@ -10,6 +10,8 @@
     "auth:staging": "node scripts/create-auth-states.mjs",
     "prepare:staging": "npm run check:staging && npm run seed:staging && npm run auth:staging",
     "test:staging": "npm run check:staging && playwright test --project=chromium",
+    "run:staging": "./scripts/run-staging-tests.sh",
+    "run:staging:prepare": "./scripts/prepare-staging.sh",
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test tests/smoke",

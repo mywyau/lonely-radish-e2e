@@ -34,6 +34,16 @@ export function statePath(name: 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E
   return path
 }
 
+export function optionalStatePath(
+  name: 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E2E_NEW_MEMBER_STATE',
+): string | null {
+  try {
+    return statePath(name)
+  } catch {
+    return null
+  }
+}
+
 export function hasLifecycleEnvironment(): boolean {
   const valuesReady = [
     'E2E_DATABASE_URL',

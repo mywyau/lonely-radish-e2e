@@ -1,5 +1,13 @@
 import 'dotenv/config'
 import { defineConfig, devices } from '@playwright/test'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+const vercelBypassSecret = process.env.E2E_VERCEL_BYPASS_SECRET?.trim()
+const vercelBypassState = process.env.E2E_VERCEL_BYPASS_STATE || '.auth/vercel-bypass.json'
+if (vercelBypassSecret && !existsSync(resolve(process.cwd(), vercelBypassState))) {
+  throw new Error(`Missing ${vercelBypassState}; run ./scripts/prepare-staging.sh to create the Vercel bypass state`)
+}
 
 export default defineConfig({
   testDir: './tests',
@@ -14,6 +22,7 @@ export default defineConfig({
     : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
+    storageState: vercelBypassSecret ? vercelBypassState : undefined,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

@@ -1,15 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { optionalStatePath } from '../support/env.js'
 
-const newMemberState = process.env.E2E_NEW_MEMBER_STATE
-const canRun = Boolean(newMemberState && existsSync(resolve(process.cwd(), newMemberState)))
+const newMemberState = optionalStatePath('E2E_NEW_MEMBER_STATE')
 
 test('orientation identity and dating choices are required in onboarding', async ({ browser }) => {
-  test.skip(!canRun, 'Set E2E_NEW_MEMBER_STATE to a dedicated incomplete account storage state')
+  test.skip(!newMemberState, 'Run npm run prepare:staging to create the incomplete account storage state')
   const context = await browser.newContext({
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
-    storageState: resolve(process.cwd(), newMemberState!),
+    storageState: newMemberState!,
   })
   const page = await context.newPage()
   await page.goto('/onboarding')

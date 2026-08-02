@@ -37,6 +37,9 @@ async function auth0Request(token, path, options = {}) {
   })
   if (!response.ok) {
     const detail = await response.text()
+    if (response.status === 403 && detail.includes('insufficient_scope')) {
+      throw new Error(`Auth0 Management API access is missing a required scope for ${options.method || 'GET'} ${path}. Authorise the staging E2E machine-to-machine application for read:users, create:users, and update:users, then run preparation again.`)
+    }
     throw new Error(`Auth0 ${options.method || 'GET'} ${path} failed (${response.status}): ${detail.slice(0, 300)}`)
   }
   return response.status === 204 ? null : response.json()
@@ -45,7 +48,19 @@ async function auth0Request(token, path, options = {}) {
 async function ensureAuth0User(token, definition) {
   const matches = await auth0Request(token, `/users-by-email?email=${encodeURIComponent(definition.email)}`)
   const existing = matches.find(user => user.identities?.some(identity => identity.connection === connection))
-  if (existing) return existing
+  if (existing) {
+    return auth0Request(token, `/users/${encodeURIComponent(existing.user_id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        connection,
+        password,
+        email_verified: true,
+        name: definition.name,
+        given_name: definition.firstName,
+        family_name: definition.lastName,
+      }),
+    })
+  }
   return auth0Request(token, '/users', {
     method: 'POST',
     body: JSON.stringify({

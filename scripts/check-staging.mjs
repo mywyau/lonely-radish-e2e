@@ -2,9 +2,13 @@ import { stagingTarget } from './safety.mjs'
 
 const baseUrl = stagingTarget()
 const pages = ['/', '/acceptable-use', '/law-enforcement-guidelines', '/privacy-notice', '/refund-policy']
+const vercelBypassSecret = process.env.E2E_VERCEL_BYPASS_SECRET?.trim()
 
 async function get(path) {
-  const response = await fetch(new URL(path, baseUrl), { redirect: 'manual' })
+  const headers = vercelBypassSecret
+    ? { 'x-vercel-protection-bypass': vercelBypassSecret }
+    : undefined
+  const response = await fetch(new URL(path, baseUrl), { headers, redirect: 'manual' })
   if (response.status >= 300 && response.status < 400) {
     throw new Error(`${path} unexpectedly redirected to ${response.headers.get('location')}`)
   }
