@@ -105,6 +105,8 @@ The Chromium gate covers:
 - public pages and the signed-out gate;
 - onboarding validation and complete photo-optional setup;
 - two-account interest, pass, match, unmatch, and rematch behaviour;
+- two-sided age, gender, orientation, and distance eligibility enforcement;
+- the five-person received-interest cap, paused intake, and next-review reopening;
 - in-app interest notifications and read state;
 - proposal creation with a custom activity and structured public address;
 - recipient review, acceptance, decline, and explicit cancellation;
@@ -160,7 +162,7 @@ not need a checked-in or generated `.env` file.
 
 After the stable staging deployment is ready, open **Actions → Staging E2E
 release gate → Run workflow**. Leave **Include the Stripe test-mode Checkout
-journey** disabled for the normal fifteen-test gate, or enable it for an explicit
+journey** disabled for the normal seventeen-test gate, or enable it for an explicit
 Stripe verification. Failed runs retain the HTML report, traces, screenshots,
 and videos for 14 days.
 
