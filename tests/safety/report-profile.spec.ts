@@ -54,6 +54,16 @@ test('blocking a member hides both profiles and keeps the block manageable', asy
       const response = await b.page.request.get(`/api/profiles/${memberA.slug}`)
       expect(response.status()).toBe(404)
     })
+
+    await test.step('A can unblock B and restore profile visibility', async () => {
+      await a.page.goto('/account/blocked')
+      const card = a.page.locator('article').filter({ hasText: memberB.name }).first()
+      await card.getByRole('button', { name: 'Unblock' }).click()
+      const dialog = a.page.getByRole('alertdialog', { name: `Unblock ${memberB.name}?` })
+      await dialog.getByRole('button', { name: 'Yes, unblock' }).click()
+      await expect(card).toBeHidden()
+      expect((await b.page.request.get(`/api/profiles/${memberA.slug}`)).status()).toBe(200)
+    })
   } finally {
     await Promise.allSettled([a.context.close(), b.context.close()])
     await resetRelationshipPair(memberA.id, memberB.id)

@@ -19,6 +19,9 @@ const manifestValues: Record<string, () => string | undefined> = {
   E2E_MEMBER_B_NAME: () => seedManifest()?.accounts.memberB.name,
   E2E_MEMBER_B_SLUG: () => seedManifest()?.accounts.memberB.slug,
   E2E_MEMBER_B_STATE: () => seedManifest()?.accounts.memberB.state,
+  E2E_NEW_MEMBER_ID: () => seedManifest()?.accounts.newMember.id,
+  E2E_NEW_MEMBER_NAME: () => seedManifest()?.accounts.newMember.name,
+  E2E_NEW_MEMBER_SLUG: () => seedManifest()?.accounts.newMember.slug,
   E2E_NEW_MEMBER_STATE: () => seedManifest()?.accounts.newMember.state,
 }
 
