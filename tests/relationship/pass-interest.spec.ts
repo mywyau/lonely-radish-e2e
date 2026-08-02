@@ -5,7 +5,6 @@ import { openMember } from '../support/member.js'
 
 test('passing on an interest is final and survives a reload', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(60_000)
   const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME'), slug: env('E2E_MEMBER_B_SLUG') }
   await resetRelationshipPair(memberA.id, memberB.id)

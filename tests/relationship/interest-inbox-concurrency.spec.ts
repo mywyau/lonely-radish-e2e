@@ -15,7 +15,6 @@ const newMemberState = optionalStatePath('E2E_NEW_MEMBER_STATE')
 test('simultaneous interest attempts cannot overfill the recipient inbox', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment() || !newMemberState,
     'Run npm run prepare:staging to create all three lifecycle accounts')
-  test.setTimeout(120_000)
   const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), slug: env('E2E_MEMBER_B_SLUG') }
   const newMember = {

@@ -9,7 +9,6 @@ import { openMember } from '../support/member.js'
 
 test('concurrent queue activation cannot exceed the limit or activate a match twice', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
   const memberA = { id: env('E2E_MEMBER_A_ID') }
   await clearMatchLimitFixtures(memberA.id)
   const a = await openMember(browser, 'E2E_MEMBER_A_STATE')

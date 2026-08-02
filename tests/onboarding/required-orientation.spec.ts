@@ -36,7 +36,6 @@ test.describe('new member onboarding', () => {
 
   test('a new member can complete onboarding without uploading a photo', async ({ browser }) => {
     test.skip(!newMemberState, 'Run npm run prepare:staging to create the incomplete account storage state')
-    test.setTimeout(120_000)
     const userId = env('E2E_NEW_MEMBER_ID')
     await resetNewMemberOnboarding(userId)
     const context = await browser.newContext({

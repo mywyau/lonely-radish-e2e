@@ -10,7 +10,6 @@ import { openMember } from '../support/member.js'
 
 test('a full inbox still allows an existing interest to become a mutual match', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
   const memberA = {
     id: env('E2E_MEMBER_A_ID'),
     name: env('E2E_MEMBER_A_NAME'),

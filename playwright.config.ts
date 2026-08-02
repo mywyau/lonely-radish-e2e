@@ -15,7 +15,7 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.E2E_TARGET_ENV === 'staging' ? 1 : process.env.CI ? 2 : undefined,
-  timeout: 45_000,
+  timeout: 90_000,
   expect: { timeout: 10_000 },
   reporter: process.env.CI
     ? [['line'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]]

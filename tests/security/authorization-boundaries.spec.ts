@@ -15,7 +15,6 @@ const newMemberState = optionalStatePath('E2E_NEW_MEMBER_STATE')
 test('one member cannot mutate another pair’s private records', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment() || !newMemberState,
     'Run npm run prepare:staging to create all three lifecycle accounts')
-  test.setTimeout(90_000)
   const memberA = { id: env('E2E_MEMBER_A_ID'), slug: env('E2E_MEMBER_A_SLUG') }
   const memberB = { id: env('E2E_MEMBER_B_ID') }
   const outsider = { id: env('E2E_NEW_MEMBER_ID') }

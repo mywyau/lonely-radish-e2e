@@ -5,7 +5,6 @@ import { openMember } from '../support/member.js'
 
 test('an existing member can edit identity and pronouns and see them on both profile views', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID'), slug: env('E2E_MEMBER_A_SLUG') }
   const originalIdentity = await publicProfileIdentity(memberA.id)

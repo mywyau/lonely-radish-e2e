@@ -471,6 +471,102 @@ export async function postDateFixtureState(fixture: PastConfirmedDateFixture): P
   }
 }
 
+export type ReliabilitySnapshot = {
+  confirmedNoShows: number
+  restrictedUntil: string | null
+}
+
+export async function resetReliabilityForTest(userId: string): Promise<ReliabilitySnapshot> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`e2e-reliability:${userId}`])
+    const { rows } = await client.query<ReliabilitySnapshot>(`select
+      confirmed_no_show_count as "confirmedNoShows",
+      discovery_restricted_until::text as "restrictedUntil" from users where id=$1 for update`, [userId])
+    if (!rows[0]) throw new Error(`Staging user not found for reliability reset: ${userId}`)
+    await client.query(`update users set confirmed_no_show_count=0,discovery_restricted_until=null
+      where id=$1`, [userId])
+    await client.query('commit')
+    return rows[0]
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
+export async function restoreReliability(userId: string, snapshot: ReliabilitySnapshot): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query(`update users set confirmed_no_show_count=$2,
+      discovery_restricted_until=$3::timestamptz where id=$1`,
+    [userId,snapshot.confirmedNoShows,snapshot.restrictedUntil])
+  } finally {
+    await client.end()
+  }
+}
+
+export async function reliabilityState(userId: string): Promise<ReliabilitySnapshot> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const { rows } = await client.query<ReliabilitySnapshot>(`select
+      confirmed_no_show_count as "confirmedNoShows",
+      discovery_restricted_until::text as "restrictedUntil" from users where id=$1`, [userId])
+    if (!rows[0]) throw new Error(`Staging user not found for reliability check: ${userId}`)
+    return rows[0]
+  } finally {
+    await client.end()
+  }
+}
+
+export async function configureDateOutcomeEligibility(
+  fixture: PastConfirmedDateFixture,
+  state: 'past' | 'future' | 'cancelled',
+): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`update proposal_times set proposed_at=case when $2='future'
+      then now()+interval '1 day' else now()-interval '1 day' end
+      where proposal_id=$1`, [fixture.proposalId,state])
+    await client.query(`update date_proposals set status=case when $2='cancelled'
+      then 'cancelled' else 'accepted' end where id=$1`, [fixture.proposalId,state])
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
+export async function noShowCaseState(proposalId: string): Promise<{
+  status: string
+  responseDeadline: string
+  responseNote: string | null
+} | null> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const { rows } = await client.query(`select status,response_deadline::text as "responseDeadline",
+      response_note as "responseNote" from date_no_show_cases where proposal_id=$1`, [proposalId])
+    return rows[0] || null
+  } finally {
+    await client.end()
+  }
+}
+
 export async function reopenInterestInbox(userId: string): Promise<void> {
   assertStagingDatabaseTarget()
   const client = databaseClient()

@@ -5,7 +5,6 @@ import { openMember } from '../support/member.js'
 
 test('bio and lifestyle edits persist and appear on both profile views', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID'), slug: env('E2E_MEMBER_A_SLUG') }
   const original = await profileDetailsSnapshot(memberA.id)

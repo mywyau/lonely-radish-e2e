@@ -43,7 +43,6 @@ test.describe('repeated second-chance lifecycle', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('the same pair can match, unmatch and rematch more than once', async ({ browser }) => {
-    test.setTimeout(120_000)
     const memberA = {
       id: env('E2E_MEMBER_A_ID'),
       name: env('E2E_MEMBER_A_NAME'),

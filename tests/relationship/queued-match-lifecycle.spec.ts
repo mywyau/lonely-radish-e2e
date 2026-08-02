@@ -25,7 +25,6 @@ async function sendVisibleInterest(page: Page, slug: string) {
 
 test('a full free match list queues, explains, and promotes the oldest eligible match', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(150_000)
   const memberA = {
     id: env('E2E_MEMBER_A_ID'),
     name: env('E2E_MEMBER_A_NAME'),

@@ -36,7 +36,6 @@ test.describe('match and date planning release journey', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('two real sessions can match, send a detailed plan, accept it, and cancel clearly', async ({ browser }) => {
-    test.setTimeout(120_000)
     const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME'), slug: env('E2E_MEMBER_A_SLUG') }
     const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME'), slug: env('E2E_MEMBER_B_SLUG') }
     await resetRelationshipPair(memberA.id, memberB.id)

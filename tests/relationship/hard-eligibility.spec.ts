@@ -10,7 +10,6 @@ import { openMember } from '../support/member.js'
 
 test('interest attempts enforce both members’ hard matching preferences', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(90_000)
   const memberA = { id: env('E2E_MEMBER_A_ID') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), slug: env('E2E_MEMBER_B_SLUG') }
   await resetRelationshipPair(memberA.id, memberB.id)

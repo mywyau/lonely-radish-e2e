@@ -8,7 +8,6 @@ import { openMember } from '../support/member.js'
 
 test('a member can manage notification history and email subscriptions', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME') }

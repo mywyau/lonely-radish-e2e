@@ -123,6 +123,7 @@ The Chromium gate covers:
 - recipient review, acceptance, decline, and explicit cancellation;
 - replacement proposals that preserve the confirmed date until accepted;
 - private post-date attendance and meet-again answers, including mutual, closed, and reconsidered outcomes;
+- no-show reporting, dispute and acknowledgement outcomes, timing guards, and private reliability history;
 - reporting a profile without being forced to block;
 - blocking, unblocking, and profile visibility restoration;
 - pausing and resuming discovery;
@@ -133,6 +134,11 @@ The Chromium gate covers:
 - structured schedule persistence and explicit pre-match availability privacy;
 - match-only contact sharing and removal after unmatching;
 - cross-account authorization for profiles, contact details, notifications, matches, and date proposals.
+
+Each test has a 90-second emergency ceiling. Assertions still fail after 10
+seconds, and focused database or navigation waits retain their shorter limits,
+so a stalled operation reports its actual failure instead of waiting for the
+full test timeout.
 
 Stripe Checkout is optional because it creates a real test-mode session:
 

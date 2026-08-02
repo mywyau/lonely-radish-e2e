@@ -61,7 +61,6 @@ test.describe('post-date private check-in', () => {
   const memberB = () => ({ id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME') })
 
   test('both members confirm attendance and independently choose to meet again', async ({ browser }) => {
-    test.setTimeout(30_000)
     const aMember = memberA()
     const bMember = memberB()
     const fixture = await seedPastConfirmedDate(aMember.id,bMember.id)
@@ -103,7 +102,6 @@ test.describe('post-date private check-in', () => {
   })
 
   test('different private answers close the connection until the no answer is reconsidered', async ({ browser }) => {
-    test.setTimeout(30_000)
     const aMember = memberA()
     const bMember = memberB()
     const fixture: PastConfirmedDateFixture = await seedPastConfirmedDate(aMember.id,bMember.id)

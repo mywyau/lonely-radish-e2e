@@ -5,7 +5,6 @@ import { openMember } from '../support/member.js'
 
 test('an existing member can replace activities with a listed and custom date idea', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID'), slug: env('E2E_MEMBER_A_SLUG') }
   const original = await activityPreferenceSnapshot(memberA.id)

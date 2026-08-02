@@ -7,7 +7,6 @@ const orientationLabels = ['Heterosexual', 'Homosexual', 'Bisexual', 'Another or
 
 test('dating preferences persist the grouped orientation and broad ethnicity choices', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
-  test.setTimeout(30_000)
 
   const memberA = { id: env('E2E_MEMBER_A_ID') }
   const original = await datingPreferenceSnapshot(memberA.id)
