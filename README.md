@@ -107,6 +107,9 @@ The Chromium gate covers:
 - two-account interest, pass, match, unmatch, and rematch behaviour;
 - two-sided age, gender, orientation, and distance eligibility enforcement;
 - the five-person received-interest cap, paused intake, and next-review reopening;
+- reciprocal matching that can bypass a full inbox without adding a sixth pending interest;
+- the five-interest daily allowance and local-day reset;
+- concurrent interest attempts that cannot overfill a recipient inbox;
 - in-app interest notifications and read state;
 - proposal creation with a custom activity and structured public address;
 - recipient review, acceptance, decline, and explicit cancellation;
@@ -114,7 +117,8 @@ The Chromium gate covers:
 - reporting a profile without being forced to block;
 - blocking, unblocking, and profile visibility restoration;
 - pausing and resuming discovery;
-- match-only contact sharing and removal after unmatching.
+- match-only contact sharing and removal after unmatching;
+- cross-account authorization for profiles, contact details, notifications, matches, and date proposals.
 
 Stripe Checkout is optional because it creates a real test-mode session:
 
@@ -162,7 +166,7 @@ not need a checked-in or generated `.env` file.
 
 After the stable staging deployment is ready, open **Actions → Staging E2E
 release gate → Run workflow**. Leave **Include the Stripe test-mode Checkout
-journey** disabled for the normal seventeen-test gate, or enable it for an explicit
+journey** disabled for the normal twenty-one-test gate, or enable it for an explicit
 Stripe verification. Failed runs retain the HTML report, traces, screenshots,
 and videos for 14 days.
 
