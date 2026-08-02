@@ -16,6 +16,7 @@ if [ "$#" -gt 0 ]; then shift; fi
 case "$mode" in
   test)
     npm run check:staging
+    npm run check:auth
     exec npx playwright test --project=chromium "$@"
     ;;
   smoke)
@@ -24,15 +25,18 @@ case "$mode" in
     ;;
   headed)
     npm run check:staging
+    npm run check:auth
     exec npx playwright test --project=chromium --headed "$@"
     ;;
   ui)
     npm run check:staging
+    npm run check:auth
     exec npx playwright test --project=chromium --ui "$@"
     ;;
   stripe)
     export E2E_RUN_STRIPE_CHECKOUT=true
     npm run check:staging
+    npm run check:auth
     exec npx playwright test --project=chromium "$@"
     ;;
   *)

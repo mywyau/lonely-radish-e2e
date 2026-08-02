@@ -30,7 +30,7 @@ Create a staging-only Auth0 Machine-to-Machine application and authorise it for 
 - `create:users`
 - `update:users`
 
-The staging Regular Web Application must use the same database connection and allow the staging callback URL:
+The staging Regular Web Application must use the same database connection and allow the staging callback URL. In Auth0, open **Authentication → Database → your `E2E_AUTH0_CONNECTION` → Applications** and enable the staging Regular Web Application:
 
 ```text
 https://YOUR-STAGING-HOST/api/auth/callback
@@ -71,7 +71,7 @@ browser cookie, so the secret is not attached to requests sent to Auth0.
 After the `staging` branch deployment is ready:
 
 ```sh
-./scripts/prepare-staging.sh
+./scripts/prepare-staging.sh && ./scripts/run-staging-tests.sh
 ```
 
 To watch Playwright complete the three Auth0 logins, use headed preparation:

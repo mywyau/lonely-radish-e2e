@@ -10,10 +10,12 @@ export async function resetRelationshipPair(userA: string, userB: string): Promi
   await client.connect()
   try {
     await client.query('begin')
+    await client.query(`update users set interest_inbox_reopens_at=null where id=$1 or id=$2`, [userA, userB])
     await client.query(`delete from notifications where
       (actor_id=$1 and recipient_id=$2) or (actor_id=$2 and recipient_id=$1)`, [userA, userB])
-    await client.query(`delete from daily_interests where
-      (sender_id=$1 and recipient_id=$2) or (sender_id=$2 and recipient_id=$1)`, [userA, userB])
+    // These are dedicated lifecycle accounts. Clear all of their outgoing
+    // interests so daily limits and prior interrupted runs cannot affect a test.
+    await client.query(`delete from daily_interests where sender_id=$1 or sender_id=$2`, [userA, userB])
     await client.query(`delete from blocks where
       (blocker_id=$1 and blocked_id=$2) or (blocker_id=$2 and blocked_id=$1)`, [userA, userB])
     await client.query(`delete from reports where
@@ -24,6 +26,20 @@ export async function resetRelationshipPair(userA: string, userB: string): Promi
   } catch (error) {
     await client.query('rollback')
     throw error
+  } finally {
+    await client.end()
+  }
+}
+
+export async function reopenInterestInbox(userId: string): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = new pg.Client({
+    connectionString: env('E2E_DATABASE_URL'),
+    ssl: process.env.E2E_DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+  })
+  await client.connect()
+  try {
+    await client.query('update users set interest_inbox_reopens_at=null where id=$1', [userId])
   } finally {
     await client.end()
   }

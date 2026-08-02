@@ -6,6 +6,7 @@
   "scripts": {
     "test": "playwright test",
     "check:staging": "node scripts/check-staging.mjs",
+    "check:auth": "node scripts/check-auth-states.mjs",
     "seed:staging": "node scripts/seed-staging.mjs",
     "auth:staging": "node scripts/create-auth-states.mjs",
     "prepare:staging": "npm run check:staging && npm run seed:staging && npm run auth:staging",

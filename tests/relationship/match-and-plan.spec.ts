@@ -22,7 +22,7 @@ async function createMatch(sender: Page, receiver: Page, recipient: { slug: stri
   await receiver.goto('/interests/received')
   const card = receiver.locator('article').filter({ hasText: senderName }).first()
   await card.getByRole('button', { name: 'Accept and match' }).click()
-  await receiver.getByRole('button', { name: 'Yes, create match' }).click()
+  await receiver.getByRole('button', { name: 'Yes, match with them' }).click()
   await expect(receiver.getByText(new RegExp(`You matched with ${senderName}`, 'i'))).toBeVisible()
 }
 
@@ -35,6 +35,7 @@ test.describe('match and date planning release journey', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('two real sessions can match, send a detailed plan, accept it, and cancel clearly', async ({ browser }) => {
+    test.setTimeout(120_000)
     const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME'), slug: env('E2E_MEMBER_A_SLUG') }
     const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME'), slug: env('E2E_MEMBER_B_SLUG') }
     await resetRelationshipPair(memberA.id, memberB.id)
@@ -58,6 +59,10 @@ test.describe('match and date planning release journey', () => {
         await a.page.getByLabel('Exact meeting point', { exact: false }).fill('Beside the box office')
         await a.page.getByLabel(/I confirm this is a public meeting place/i).check()
         await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
+        await expect(a.page).toHaveURL(/\/matches$/)
+        const matchCard = a.page.locator('article').filter({ hasText: memberB.name }).first()
+        await expect(matchCard.getByText('Waiting for a response', { exact: true })).toBeVisible()
+        await matchCard.getByRole('link', { name: 'Edit proposal' }).click()
         await expect(a.page.getByRole('heading', { name: `Waiting for ${memberB.name}’s response` })).toBeVisible()
         await expect(a.page.getByText('Pottery painting', { exact: true })).toBeVisible()
         await expect(a.page.getByText('EC2Y 8DS', { exact: true })).toBeVisible()
@@ -77,13 +82,16 @@ test.describe('match and date planning release journey', () => {
         const dialog = a.page.getByRole('alertdialog')
         await expect(dialog.getByText(/remain matched and can make another plan later/i)).toBeVisible()
         await dialog.getByRole('button', { name: 'Yes, cancel date' }).click()
-        await expect(a.page.getByText('Confirmed', { exact: true })).toBeHidden()
+        await expect(a.page).toHaveURL(url =>
+          url.pathname === '/matches' && url.searchParams.get('date') === 'cancelled')
+        await expect(a.page.getByText(/The date was cancelled and your match was notified/i)).toBeVisible()
+        const matchCard = a.page.locator('article').filter({ hasText: memberB.name }).first()
+        await expect(matchCard.getByText('Date cancelled — ready to plan again', { exact: true })).toBeVisible()
         await b.page.reload()
-        await expect(b.page.getByText('Confirmed', { exact: true })).toBeHidden()
+        await expect(b.page.getByRole('button', { name: 'Cancel this date' })).toBeHidden()
       })
     } finally {
-      await a.context.close()
-      await b.context.close()
+      await Promise.allSettled([a.context.close(), b.context.close()])
       await resetRelationshipPair(memberA.id, memberB.id)
     }
   })

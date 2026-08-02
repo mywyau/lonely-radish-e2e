@@ -6,6 +6,8 @@ import { required, stagingTarget } from './safety.mjs'
 
 const baseUrl = stagingTarget()
 const password = required('E2E_TEST_PASSWORD')
+const auth0Domain = required('E2E_AUTH0_DOMAIN').replace(/^https?:\/\//, '').replace(/\/+$/, '')
+const auth0Connection = required('E2E_AUTH0_CONNECTION')
 const manifestPath = resolve(process.cwd(), process.env.E2E_SEED_MANIFEST || '.auth/staging-users.json')
 const vercelBypassSecret = process.env.E2E_VERCEL_BYPASS_SECRET?.trim()
 const vercelBypassStatePath = resolve(
@@ -69,7 +71,25 @@ async function signIn(accountKey, account) {
   const page = await context.newPage()
   try {
     console.log(`Signing in ${account.name}...`)
-    await page.goto(new URL('/api/auth/login?mode=switch&returnTo=/matches', baseUrl).toString())
+    const loginUrl = new URL('/api/auth/login?mode=switch&returnTo=/matches', baseUrl)
+    const loginResponse = await context.request.get(loginUrl.toString(), { maxRedirects: 0 })
+    if (![301, 302, 303, 307, 308].includes(loginResponse.status())) {
+      throw new Error(`Application login initiation returned HTTP ${loginResponse.status()}`)
+    }
+    const location = loginResponse.headers().location
+    if (!location) throw new Error('Application login initiation did not return an Auth0 redirect')
+    const authorizeUrl = new URL(location)
+    if (authorizeUrl.hostname !== auth0Domain) {
+      throw new Error(`Application login redirected to unexpected identity host ${authorizeUrl.hostname}`)
+    }
+    authorizeUrl.searchParams.set('connection', auth0Connection)
+    await page.goto(authorizeUrl.toString())
+    if (new URL(page.url()).origin === baseUrl.origin) {
+      const applicationError = await page.locator('body').innerText().catch(() => '')
+      if (/connection is not enabled/i.test(applicationError)) {
+        throw new Error(`Auth0 database connection "${auth0Connection}" is not enabled for the staging Regular Web Application. Enable that connection for the application in Auth0, then run preparation again.`)
+      }
+    }
     const identity = page.locator([
       'input[name="username"]:visible',
       'input[name="email"]:visible',

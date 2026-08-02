@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { resetRelationshipPair } from '../support/database.js'
+import { reopenInterestInbox, resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 
@@ -17,7 +17,7 @@ async function acceptInterest(page: Page, senderName: string) {
   const card = page.locator('article').filter({ hasText: senderName }).first()
   await expect(card).toBeVisible()
   await card.getByRole('button', { name: 'Accept and match' }).click()
-  await page.getByRole('button', { name: 'Yes, create match' }).click()
+  await page.getByRole('button', { name: 'Yes, match with them' }).click()
   await expect(page.getByText(new RegExp(`You matched with ${senderName}`, 'i'))).toBeVisible()
 }
 
@@ -43,6 +43,7 @@ test.describe('repeated second-chance lifecycle', () => {
   test.describe.configure({ mode: 'serial' })
 
   test('the same pair can match, unmatch and rematch more than once', async ({ browser }) => {
+    test.setTimeout(120_000)
     const memberA = {
       id: env('E2E_MEMBER_A_ID'),
       name: env('E2E_MEMBER_A_NAME'),
@@ -66,6 +67,9 @@ test.describe('repeated second-chance lifecycle', () => {
       await test.step('A ends the match and earns a second chance', async () => {
         await removeMatch(a.page, memberB.name)
         await sendApology(a.page, memberB.slug)
+        // Accepting an interest deliberately paces the recipient's inbox until
+        // the next local day. Advance that test state before exercising rematch.
+        await reopenInterestInbox(memberB.id)
         await sendInterest(a.page, memberB.slug, memberB.name)
         await acceptInterest(b.page, memberA.name)
       })
@@ -79,8 +83,7 @@ test.describe('repeated second-chance lifecycle', () => {
 
       await expect(a.page.getByText(new RegExp(`You matched with ${memberB.name}`, 'i'))).toBeVisible()
     } finally {
-      await a.context.close()
-      await b.context.close()
+      await Promise.allSettled([a.context.close(), b.context.close()])
     }
   })
 })

@@ -49,11 +49,19 @@ async function ensureAuth0User(token, definition) {
   const matches = await auth0Request(token, `/users-by-email?email=${encodeURIComponent(definition.email)}`)
   const existing = matches.find(user => user.identities?.some(identity => identity.connection === connection))
   if (existing) {
-    return auth0Request(token, `/users/${encodeURIComponent(existing.user_id)}`, {
+    const userPath = `/users/${encodeURIComponent(existing.user_id)}`
+    // Auth0 rejects password and email_verified in the same update, so keep the
+    // credential reconciliation separate from the profile/verification update.
+    await auth0Request(token, userPath, {
       method: 'PATCH',
       body: JSON.stringify({
         connection,
         password,
+      }),
+    })
+    return auth0Request(token, userPath, {
+      method: 'PATCH',
+      body: JSON.stringify({
         email_verified: true,
         name: definition.name,
         given_name: definition.firstName,
@@ -104,11 +112,12 @@ try {
     await database.query('delete from users where lower(email)=lower($1) and id<>$2', [account.email, account.id])
     await database.query(`insert into users(
         id,email,first_name,last_name,role,account_status,timezone,account_type,onboarding_completed_at,
-        paused_at,paused_until,deletion_requested_at,deletion_status,deleted_at
-      ) values($1,$2,$3,$4,'member','active','Europe/London','personal',$5,null,null,null,null,null)
+        interest_inbox_reopens_at,paused_at,paused_until,deletion_requested_at,deletion_status,deleted_at
+      ) values($1,$2,$3,$4,'member','active','Europe/London','personal',$5,null,null,null,null,null,null)
       on conflict(id) do update set email=excluded.email,first_name=excluded.first_name,last_name=excluded.last_name,
         role='member',account_status='active',timezone='Europe/London',account_type='personal',
-        onboarding_completed_at=excluded.onboarding_completed_at,paused_at=null,paused_until=null,
+        onboarding_completed_at=excluded.onboarding_completed_at,interest_inbox_reopens_at=null,
+        paused_at=null,paused_until=null,
         deletion_requested_at=null,deletion_status=null,deleted_at=null,updated_at=now()`,
       [account.id, account.email, definition.firstName, definition.lastName, definition.complete ? new Date() : null])
     await database.query(`insert into entitlements(user_id,plan,subscription_status,cancel_at_period_end)
