@@ -118,7 +118,7 @@ The Chromium gate covers:
 - concurrency protection for the final active slot and repeated activation attempts;
 - the five-interest daily allowance and local-day reset;
 - concurrent interest attempts that cannot overfill a recipient inbox;
-- in-app interest notifications and read state;
+- in-app notification read, bulk-delete, and email-subscription controls;
 - proposal creation with a custom activity and structured public address;
 - recipient review, acceptance, decline, and explicit cancellation;
 - replacement proposals that preserve the confirmed date until accepted;
@@ -126,6 +126,9 @@ The Chromium gate covers:
 - blocking, unblocking, and profile visibility restoration;
 - pausing and resuming discovery;
 - editing gender identity and pronouns, then verifying the private preview and public profile;
+- editing bio and lifestyle details, then verifying their persisted private and public presentation;
+- replacing activity preferences with listed and custom date ideas;
+- grouped sexual-orientation and broad ethnicity preference persistence;
 - match-only contact sharing and removal after unmatching;
 - cross-account authorization for profiles, contact details, notifications, matches, and date proposals.
 
