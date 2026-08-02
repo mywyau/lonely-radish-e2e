@@ -5,12 +5,60 @@ const interestInboxFixtureIds = Array.from({ length: 5 }, (_, index) =>
   `e2e-interest-inbox-sender-${index + 1}`)
 const dailyLimitFixtureIds = Array.from({ length: 5 }, (_, index) =>
   `e2e-daily-limit-recipient-${index + 1}`)
+const activeMatchFixtureIds = Array.from({ length: 3 }, (_, index) =>
+  `e2e-active-match-person-${index + 1}`)
+const queuedMatchFixtureIds = Array.from({ length: 2 }, (_, index) =>
+  `e2e-queued-match-person-${index + 1}`)
+const matchLimitFixtureIds = [...activeMatchFixtureIds, ...queuedMatchFixtureIds]
 
 function databaseClient(): pg.Client {
   return new pg.Client({
     connectionString: env('E2E_DATABASE_URL'),
     ssl: process.env.E2E_DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
   })
+}
+
+export type PublicProfileIdentity = {
+  genderIdentity: 'man' | 'woman' | 'neither'
+  pronouns: string | null
+  updatedAt: string
+}
+
+export async function publicProfileIdentity(userId: string): Promise<PublicProfileIdentity> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const { rows } = await client.query<PublicProfileIdentity>(`select
+      gender_identity as "genderIdentity",pronouns,updated_at::text as "updatedAt"
+      from profiles where user_id=$1`, [userId])
+    if (!rows[0]) throw new Error(`Profile not found for staging user ${userId}`)
+    return rows[0]
+  } finally {
+    await client.end()
+  }
+}
+
+export async function restorePublicProfileIdentity(
+  userId: string,
+  identity: PublicProfileIdentity,
+): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`e2e-profile-identity:${userId}`])
+    const result = await client.query(`update profiles set gender_identity=$2,pronouns=$3,updated_at=$4::timestamptz
+      where user_id=$1`, [userId, identity.genderIdentity, identity.pronouns, identity.updatedAt])
+    if (result.rowCount !== 1) throw new Error(`Profile not found for staging user ${userId}`)
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
 }
 
 export async function resetRelationshipPair(userA: string, userB: string): Promise<void> {
@@ -419,6 +467,153 @@ export async function authorizationFixtureState(fixtures: AuthorizationFixtures)
       (select read_at is not null from notifications where id=$4) as "notificationRead"`,
     [fixtures.matchId, fixtures.confirmedProposalId, fixtures.pendingProposalId, fixtures.notificationId])
     return rows[0]
+  } finally {
+    await client.end()
+  }
+}
+
+export type MatchLimitFixture = {
+  matchId: string
+  userId: string
+  name: string
+  slug: string
+}
+
+export type MatchLimitFixtures = {
+  active: MatchLimitFixture[]
+  queued: MatchLimitFixture[]
+}
+
+export async function seedMatchLimitFixtures(
+  ownerId: string,
+  activeCount: number,
+  queuedCount: number,
+): Promise<MatchLimitFixtures> {
+  if (!Number.isInteger(activeCount) || activeCount < 0 || activeCount > activeMatchFixtureIds.length) {
+    throw new Error('Active match fixture count must be between 0 and 3')
+  }
+  if (!Number.isInteger(queuedCount) || queuedCount < 0 || queuedCount > queuedMatchFixtureIds.length) {
+    throw new Error('Queued match fixture count must be between 0 and 2')
+  }
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`select pg_advisory_xact_lock(hashtext('e2e-match-limit-fixtures'))`)
+    await client.query(`delete from notifications where recipient_id=$1 or actor_id=$1
+      or recipient_id=any($2::text[]) or actor_id=any($2::text[])`, [ownerId, matchLimitFixtureIds])
+    await client.query(`delete from matches where user_one_id=$1 or user_two_id=$1
+      or user_one_id=any($2::text[]) or user_two_id=any($2::text[])`, [ownerId, matchLimitFixtureIds])
+    await client.query('delete from users where id=any($1::text[])', [matchLimitFixtureIds])
+    await client.query(`insert into entitlements(user_id,plan,subscription_status,cancel_at_period_end)
+      values($1,'free','no_subscription',false) on conflict(user_id) do update set
+      plan='free',subscription_status='no_subscription',current_period_start=null,current_period_end=null,
+      cancel_at_period_end=false,canceled_at=null`, [ownerId])
+
+    for (const [index, userId] of matchLimitFixtureIds.entries()) {
+      const isActiveFixture = index < activeMatchFixtureIds.length
+      const number = isActiveFixture ? index + 1 : index - activeMatchFixtureIds.length + 1
+      const type = isActiveFixture ? 'Active' : 'Waiting'
+      await client.query(`insert into users(
+          id,email,first_name,last_name,role,account_status,timezone,account_type,onboarding_completed_at
+        ) values($1,$2,$3,'Fixture','member','active','Europe/London','personal',now())`,
+      [userId, `match-limit-${index + 1}@e2e.invalid`, `${type} ${number}`])
+      await client.query(`insert into entitlements(user_id,plan,subscription_status,cancel_at_period_end)
+        values($1,'free','no_subscription',false)`, [userId])
+      await client.query(`insert into profiles(
+          user_id,slug,display_name,date_of_birth,pronouns,bio,visibility,gender_identity,
+          race_ethnicity,sexual_orientation,postcode_area,location_label,location
+        ) values($1,$2,$3,'1993-06-15','they/them','Synthetic match-limit fixture.',
+          'active','neither','White','bisexual','EC1','Central London',
+          extensions.ST_SetSRID(extensions.ST_MakePoint(-0.12,51.50),4326)::extensions.geography)`,
+      [userId, `e2e-${type.toLowerCase()}-match-${number}`, `${type} Match ${number}`])
+    }
+
+    const active: MatchLimitFixture[] = []
+    for (const [index, userId] of activeMatchFixtureIds.slice(0, activeCount).entries()) {
+      const [userOne, userTwo] = [ownerId, userId].sort()
+      const result = await client.query(`insert into matches(user_one_id,user_two_id,status,matched_at)
+        values($1,$2,'active',now()-($3::int * interval '1 minute')) returning id`,
+      [userOne, userTwo, activeCount - index])
+      active.push({ matchId: result.rows[0].id, userId,
+        name: `Active Match ${index + 1}`, slug: `e2e-active-match-${index + 1}` })
+    }
+    const queued: MatchLimitFixture[] = []
+    for (const [index, userId] of queuedMatchFixtureIds.slice(0, queuedCount).entries()) {
+      const [userOne, userTwo] = [ownerId, userId].sort()
+      const result = await client.query(`insert into matches(user_one_id,user_two_id,status,matched_at)
+        values($1,$2,'queued',now()-($3::int * interval '1 minute')) returning id`,
+      [userOne, userTwo, queuedCount - index])
+      queued.push({ matchId: result.rows[0].id, userId,
+        name: `Waiting Match ${index + 1}`, slug: `e2e-waiting-match-${index + 1}` })
+    }
+    await client.query('commit')
+    return { active, queued }
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
+export async function addQueuedMatchLimitFixture(ownerId: string, index = 0): Promise<MatchLimitFixture> {
+  if (!Number.isInteger(index) || index < 0 || index >= queuedMatchFixtureIds.length) {
+    throw new Error('Queued match fixture index must be 0 or 1')
+  }
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const userId = queuedMatchFixtureIds[index]
+    const [userOne, userTwo] = [ownerId, userId].sort()
+    const { rows } = await client.query(`insert into matches(user_one_id,user_two_id,status,matched_at)
+      values($1,$2,'queued',now()) on conflict(user_one_id,user_two_id) do update set
+      status='queued',matched_at=now(),ended_by=null,ended_reason=null,ended_at=null
+      returning id`, [userOne, userTwo])
+    return { matchId: rows[0].id, userId,
+      name: `Waiting Match ${index + 1}`, slug: `e2e-waiting-match-${index + 1}` }
+  } finally {
+    await client.end()
+  }
+}
+
+export async function matchLimitState(ownerId: string, matchIds: string[]): Promise<{
+  activeCount: number
+  statuses: Record<string, string>
+}> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const active = await client.query(`select count(*)::int as count from matches where status='active'
+      and (user_one_id=$1 or user_two_id=$1)`, [ownerId])
+    const matches = await client.query(`select id,status from matches where id=any($1::uuid[])`, [matchIds])
+    return {
+      activeCount: active.rows[0]?.count || 0,
+      statuses: Object.fromEntries(matches.rows.map(row => [row.id, row.status])),
+    }
+  } finally {
+    await client.end()
+  }
+}
+
+export async function clearMatchLimitFixtures(ownerId: string): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`delete from notifications where recipient_id=$1 or actor_id=$1
+      or recipient_id=any($2::text[]) or actor_id=any($2::text[])`, [ownerId, matchLimitFixtureIds])
+    await client.query(`delete from matches where user_one_id=$1 or user_two_id=$1
+      or user_one_id=any($2::text[]) or user_two_id=any($2::text[])`, [ownerId, matchLimitFixtureIds])
+    await client.query('delete from users where id=any($1::text[])', [matchLimitFixtureIds])
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
   } finally {
     await client.end()
   }

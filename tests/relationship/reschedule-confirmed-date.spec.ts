@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
+import { gotoPlanningRoom } from '../support/navigation.js'
 
 function nextSaturdayAt(hour: number) {
   const result = new Date()
@@ -48,17 +49,17 @@ test('a confirmed date stays in place until both members accept its replacement'
   try {
     await test.step('the members confirm an initial date', async () => {
       await createMatch(a.page, b.page, memberB, memberA.name)
-      await a.page.goto(`/plans/${memberB.slug}?new=1`)
+      await gotoPlanningRoom(a.page, `/plans/${memberB.slug}?new=1`)
       await fillProposal(a.page, 'Pottery painting', 14, 'Barbican Centre', 'Beside the box office')
       await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
-      await b.page.goto(`/plans/${memberA.slug}`)
+      await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
       await b.page.getByRole('button', { name: 'Accept proposal' }).click()
       const confirmed = b.page.getByText('Confirmed date', { exact: true }).locator('xpath=ancestor::section[1]')
       await expect(confirmed.getByText('Pottery painting', { exact: true })).toBeVisible()
     })
 
     await test.step('A proposes a replacement without erasing the current date', async () => {
-      await a.page.goto(`/plans/${memberB.slug}`)
+      await gotoPlanningRoom(a.page, `/plans/${memberB.slug}`)
       await a.page.getByRole('button', { name: 'Propose a different date' }).click()
       const currentDate = a.page.getByText('Current date — still confirmed', { exact: true })
         .locator('xpath=ancestor::section[1]')
@@ -75,7 +76,7 @@ test('a confirmed date stays in place until both members accept its replacement'
     })
 
     await test.step('B sees both plans and deliberately accepts the replacement', async () => {
-      await b.page.goto(`/plans/${memberA.slug}`)
+      await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
       const currentDate = b.page.getByText('Current date — still confirmed', { exact: true })
         .locator('xpath=ancestor::section[1]')
       await expect(currentDate.getByText('Pottery painting', { exact: true })).toBeVisible()

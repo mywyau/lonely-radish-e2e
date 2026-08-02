@@ -74,6 +74,11 @@ After the `staging` branch deployment is ready:
 ./scripts/prepare-staging.sh && ./scripts/run-staging-tests.sh
 ```
 
+Wait for the Vercel deployment and staging migrations to finish before starting
+the full gate, and do not deploy again while it is running. The branch URL can
+switch to a new deployment mid-run, leaving an already-open browser page with
+JavaScript chunk URLs that no longer exist.
+
 To watch Playwright complete the three Auth0 logins, use headed preparation:
 
 ```sh
@@ -108,6 +113,9 @@ The Chromium gate covers:
 - two-sided age, gender, orientation, and distance eligibility enforcement;
 - the five-person received-interest cap, paused intake, and next-review reopening;
 - reciprocal matching that can bypass a full inbox without adding a sixth pending interest;
+- free-account active-match limits and clear waiting-match states for both people;
+- automatic oldest-eligible queue promotion when an active match is removed;
+- concurrency protection for the final active slot and repeated activation attempts;
 - the five-interest daily allowance and local-day reset;
 - concurrent interest attempts that cannot overfill a recipient inbox;
 - in-app interest notifications and read state;
@@ -117,6 +125,7 @@ The Chromium gate covers:
 - reporting a profile without being forced to block;
 - blocking, unblocking, and profile visibility restoration;
 - pausing and resuming discovery;
+- editing gender identity and pronouns, then verifying the private preview and public profile;
 - match-only contact sharing and removal after unmatching;
 - cross-account authorization for profiles, contact details, notifications, matches, and date proposals.
 
@@ -166,7 +175,7 @@ not need a checked-in or generated `.env` file.
 
 After the stable staging deployment is ready, open **Actions → Staging E2E
 release gate → Run workflow**. Leave **Include the Stripe test-mode Checkout
-journey** disabled for the normal twenty-one-test gate, or enable it for an explicit
+journey** disabled for the normal release gate, or enable it for an explicit
 Stripe verification. Failed runs retain the HTML report, traces, screenshots,
 and videos for 14 days.
 

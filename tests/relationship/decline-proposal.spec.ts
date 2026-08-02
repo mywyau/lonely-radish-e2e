@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
+import { gotoPlanningRoom } from '../support/navigation.js'
 
 function nextSaturdayAtTwo() {
   const result = new Date()
@@ -33,7 +34,7 @@ test('declining a date proposal notifies the sender and leaves the match open', 
 
   try {
     await createMatch(a.page, b.page, memberB, memberA.name)
-    await a.page.goto(`/plans/${memberB.slug}?new=1`)
+    await gotoPlanningRoom(a.page, `/plans/${memberB.slug}?new=1`)
     await a.page.getByLabel('Suggest a different activity').fill('Coffee and a gallery walk')
     await a.page.getByLabel('Proposed date and time').fill(nextSaturdayAtTwo())
     await a.page.getByRole('button', { name: 'Use this time' }).click()
@@ -43,7 +44,7 @@ test('declining a date proposal notifies the sender and leaves the match open', 
     await a.page.getByLabel(/I confirm this is a public meeting place/i).check()
     await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
 
-    await b.page.goto(`/plans/${memberA.slug}`)
+    await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
     await b.page.getByRole('button', { name: 'Decline' }).click()
     await expect(b.page).toHaveURL(/\/matches$/)
     await expect(b.page.locator('article').filter({ hasText: memberA.name }).first()).toBeVisible()

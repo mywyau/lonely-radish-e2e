@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
+import { gotoPlanningRoom } from '../support/navigation.js'
 
 function nextSaturdayAtTwo() {
   const result = new Date()
@@ -48,7 +49,7 @@ test.describe('match and date planning release journey', () => {
       })
 
       await test.step('send a complete proposal using the browser UI', async () => {
-        await a.page.goto(`/plans/${memberB.slug}?new=1`)
+        await gotoPlanningRoom(a.page, `/plans/${memberB.slug}?new=1`)
         await a.page.getByLabel('Suggest a different activity').fill('Pottery painting')
         await a.page.getByPlaceholder(/I’d love to try this with you/i).fill('This sounds relaxed and fun.')
         await a.page.getByLabel('Proposed date and time').fill(nextSaturdayAtTwo())
@@ -69,7 +70,7 @@ test.describe('match and date planning release journey', () => {
       })
 
       await test.step('the recipient reviews and accepts the same details', async () => {
-        await b.page.goto(`/plans/${memberA.slug}`)
+        await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
         await expect(b.page.getByRole('heading', { name: `${memberA.name} suggested this date` })).toBeVisible()
         await expect(b.page.getByText('Beside the box office', { exact: false })).toBeVisible()
         await b.page.getByRole('button', { name: 'Accept proposal' }).click()

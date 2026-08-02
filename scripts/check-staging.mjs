@@ -12,7 +12,10 @@ async function get(path) {
   if (response.status >= 300 && response.status < 400) {
     throw new Error(`${path} unexpectedly redirected to ${response.headers.get('location')}`)
   }
-  if (!response.ok) throw new Error(`${path} returned HTTP ${response.status}`)
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 1_000)
+    throw new Error(`${path} returned HTTP ${response.status}: ${detail}`)
+  }
   return response
 }
 
