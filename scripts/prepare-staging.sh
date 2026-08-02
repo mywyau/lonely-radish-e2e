@@ -5,7 +5,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repository_dir=$(dirname -- "$script_dir")
 cd "$repository_dir"
 
-if [ ! -f .env ]; then
+if [ ! -f .env ] && [ "${CI:-}" != "true" ]; then
   echo "Missing $repository_dir/.env. Copy .env.example and add the staging values first." >&2
   exit 1
 fi

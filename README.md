@@ -121,6 +121,44 @@ For local public smoke checks:
 E2E_START_LOCAL_APP=true npm run test:smoke
 ```
 
+## GitHub Actions release gate
+
+The manual **Staging E2E release gate** workflow uses a protected GitHub
+Environment named `staging`. Runs are serialized because the lifecycle tests
+reset records shared by the three dedicated test accounts.
+
+In the E2E GitHub repository, create **Settings → Environments → staging** and
+add these environment variables:
+
+- `E2E_BASE_URL`
+- `E2E_ALLOWED_HOST`
+- `E2E_PRODUCTION_URL`
+- `E2E_DATABASE_SSL` (`true` unless the staging database requires otherwise)
+- `E2E_EXPECTED_DATABASE_HOST`
+- `E2E_EXPECTED_DATABASE_PROJECT_REF`
+- `E2E_AUTH0_DOMAIN`
+- `E2E_AUTH0_CONNECTION`
+
+Add these environment secrets:
+
+- `E2E_DATABASE_URL`
+- `E2E_AUTH0_MGMT_CLIENT_ID`
+- `E2E_AUTH0_MGMT_CLIENT_SECRET`
+- `E2E_TEST_PASSWORD`
+- `E2E_MEMBER_A_EMAIL`
+- `E2E_MEMBER_B_EMAIL`
+- `E2E_NEW_MEMBER_EMAIL`
+- `E2E_VERCEL_BYPASS_SECRET` when deployment protection is enabled
+
+The workflow sets the staging and database-reset safety flags itself. It does
+not need a checked-in or generated `.env` file.
+
+After the stable staging deployment is ready, open **Actions → Staging E2E
+release gate → Run workflow**. Leave **Include the Stripe test-mode Checkout
+journey** disabled for the normal seven-test gate, or enable it for an explicit
+Stripe verification. Failed runs retain the HTML report, traces, screenshots,
+and videos for 14 days.
+
 ## Release workflow
 
 1. Create a feature branch from `staging`.

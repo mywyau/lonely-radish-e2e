@@ -1,0 +1,100 @@
+name: Staging E2E release gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_stripe:
+        description: Include the Stripe test-mode Checkout journey
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# The lifecycle tests reset shared staging records, so never overlap two runs.
+concurrency:
+  group: lonely-radish-staging-e2e
+  cancel-in-progress: false
+
+jobs:
+  staging-e2e:
+    name: Prepare accounts and run Chromium journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    env:
+      CI: true
+      E2E_TARGET_ENV: staging
+      E2E_ALLOW_DATABASE_RESET: true
+      E2E_RUN_STRIPE_CHECKOUT: ${{ inputs.run_stripe && 'true' || 'false' }}
+
+      E2E_BASE_URL: ${{ vars.E2E_BASE_URL }}
+      E2E_ALLOWED_HOST: ${{ vars.E2E_ALLOWED_HOST }}
+      E2E_PRODUCTION_URL: ${{ vars.E2E_PRODUCTION_URL }}
+      E2E_DATABASE_SSL: ${{ vars.E2E_DATABASE_SSL || 'true' }}
+      E2E_EXPECTED_DATABASE_HOST: ${{ vars.E2E_EXPECTED_DATABASE_HOST }}
+      E2E_EXPECTED_DATABASE_PROJECT_REF: ${{ vars.E2E_EXPECTED_DATABASE_PROJECT_REF }}
+      E2E_AUTH0_DOMAIN: ${{ vars.E2E_AUTH0_DOMAIN }}
+      E2E_AUTH0_CONNECTION: ${{ vars.E2E_AUTH0_CONNECTION }}
+
+      E2E_DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
+      E2E_AUTH0_MGMT_CLIENT_ID: ${{ secrets.E2E_AUTH0_MGMT_CLIENT_ID }}
+      E2E_AUTH0_MGMT_CLIENT_SECRET: ${{ secrets.E2E_AUTH0_MGMT_CLIENT_SECRET }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      E2E_MEMBER_A_EMAIL: ${{ secrets.E2E_MEMBER_A_EMAIL }}
+      E2E_MEMBER_B_EMAIL: ${{ secrets.E2E_MEMBER_B_EMAIL }}
+      E2E_NEW_MEMBER_EMAIL: ${{ secrets.E2E_NEW_MEMBER_EMAIL }}
+      E2E_VERCEL_BYPASS_SECRET: ${{ secrets.E2E_VERCEL_BYPASS_SECRET }}
+
+    steps:
+      - name: Check out E2E repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Validate staging configuration
+        shell: bash
+        run: |
+          required=(
+            E2E_BASE_URL E2E_ALLOWED_HOST E2E_PRODUCTION_URL
+            E2E_DATABASE_URL E2E_EXPECTED_DATABASE_HOST E2E_EXPECTED_DATABASE_PROJECT_REF
+            E2E_AUTH0_DOMAIN E2E_AUTH0_CONNECTION E2E_AUTH0_MGMT_CLIENT_ID
+            E2E_AUTH0_MGMT_CLIENT_SECRET E2E_TEST_PASSWORD
+            E2E_MEMBER_A_EMAIL E2E_MEMBER_B_EMAIL E2E_NEW_MEMBER_EMAIL
+          )
+          missing=()
+          for name in "${required[@]}"; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing staging GitHub variables/secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Prepare staging accounts and browser sessions
+        run: ./scripts/prepare-staging.sh
+
+      - name: Run staging release gate
+        run: ./scripts/run-staging-tests.sh
+
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: staging-e2e-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
