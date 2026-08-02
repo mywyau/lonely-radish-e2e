@@ -108,9 +108,14 @@ async function signIn(accountKey, account) {
     console.log(`Password form ready for ${account.name}`)
     await passwordInput.fill(password)
     await submitFormFor(passwordInput)
-    const rejectedCredentials = page.getByText(/wrong email or password/i).first()
+    const rejectedCredentials = page.getByText(
+      /wrong email or password|incorrect (?:username|email) or password|invalid password|too many attempts|suspicious|captcha|blocked|access denied/i,
+    ).first()
       .waitFor({ state: 'visible', timeout: 30_000 })
-      .then(() => { throw new Error(`Auth0 rejected the credentials for ${account.name}. Use a dedicated test address or recreate the synthetic Auth0 user with E2E_TEST_PASSWORD.`) })
+      .then(async () => {
+        const message = (await rejectedCredentialsText(page)).slice(0, 300)
+        throw new Error(`Auth0 rejected the login for ${account.name}${message ? `: ${message}` : ''}. Check the staging tenant's login and attack-protection settings.`)
+      })
     await Promise.race([
       page.waitForURL(url => url.origin === baseUrl.origin && !url.pathname.startsWith('/api/auth/'), {
         timeout: 30_000,
@@ -125,12 +130,24 @@ async function signIn(accountKey, account) {
   } catch (error) {
     const diagnosticPath = resolve(process.cwd(), `.auth/login-failure-${accountKey}.png`)
     await page.screenshot({ path: diagnosticPath, fullPage: true }).catch(() => undefined)
-    console.error(`Auth0 login failed for ${account.name} on ${new URL(page.url()).hostname}. Screenshot: ${diagnosticPath}`)
+    const message = (await rejectedCredentialsText(page)).slice(0, 300)
+    const location = new URL(page.url())
+    console.error(`Auth0 login failed for ${account.name} on ${location.hostname}${location.pathname}.${message ? ` Visible error: ${message}.` : ''} Screenshot: ${diagnosticPath}`)
     throw error
   } finally {
     await context.close()
     await browser.close()
   }
+}
+
+async function rejectedCredentialsText(page) {
+  const messages = await page.locator([
+    '[role="alert"]:visible',
+    '[aria-live="assertive"]:visible',
+    '.ulp-input-error-message:visible',
+    '.ulp-error-info:visible',
+  ].join(', ')).allInnerTexts().catch(() => [])
+  return [...new Set(messages.map(message => message.replace(/\s+/g, ' ').trim()).filter(Boolean))].join(' | ')
 }
 
 for (const [accountKey, account] of Object.entries(manifest.accounts)) await signIn(accountKey, account)
