@@ -104,10 +104,12 @@ The Chromium gate covers:
 - deployment health and staging isolation;
 - public pages and the signed-out gate;
 - onboarding validation;
-- two-account interest, match, unmatch, and rematch behaviour;
+- two-account interest, pass, match, unmatch, and rematch behaviour;
 - proposal creation with a custom activity and structured public address;
 - recipient review, acceptance, and explicit cancellation;
-- reporting a profile without being forced to block.
+- replacement proposals that preserve the confirmed date until accepted;
+- reporting a profile without being forced to block;
+- blocking a profile and verifying that both members become hidden.
 
 Stripe Checkout is optional because it creates a real test-mode session:
 
@@ -155,7 +157,7 @@ not need a checked-in or generated `.env` file.
 
 After the stable staging deployment is ready, open **Actions → Staging E2E
 release gate → Run workflow**. Leave **Include the Stripe test-mode Checkout
-journey** disabled for the normal seven-test gate, or enable it for an explicit
+journey** disabled for the normal ten-test gate, or enable it for an explicit
 Stripe verification. Failed runs retain the HTML report, traces, screenshots,
 and videos for 14 days.
 
