@@ -129,6 +129,7 @@ The Chromium gate covers:
 - editing bio and lifestyle details, then verifying their persisted private and public presentation;
 - replacing activity preferences with listed and custom date ideas;
 - grouped sexual-orientation and broad ethnicity preference persistence;
+- structured schedule persistence and explicit pre-match availability privacy;
 - match-only contact sharing and removal after unmatching;
 - cross-account authorization for profiles, contact details, notifications, matches, and date proposals.
 

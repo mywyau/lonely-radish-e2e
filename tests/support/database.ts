@@ -199,6 +199,71 @@ export async function restoreDatingPreferences(userId: string, snapshot: DatingP
   }
 }
 
+export type SchedulePreferenceSnapshot = {
+  windows: Array<{
+    id: string
+    label: string
+    position: number
+    weekday: number | null
+    startTime: string | null
+    endTime: string | null
+  }>
+  preferences: {
+    publicOnly: boolean
+    availabilityVisibleBeforeMatch: boolean
+  } | null
+}
+
+export async function schedulePreferenceSnapshot(userId: string): Promise<SchedulePreferenceSnapshot> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const [windows, preferences] = await Promise.all([
+      client.query(`select id,label,position,weekday,start_time::text as "startTime",
+        end_time::text as "endTime" from availability where user_id=$1 order by position`, [userId]),
+      client.query(`select public_places_only as "publicOnly",
+        availability_visible_before_match as "availabilityVisibleBeforeMatch"
+        from match_preferences where user_id=$1`, [userId]),
+    ])
+    return { windows: windows.rows, preferences: preferences.rows[0] || null }
+  } finally {
+    await client.end()
+  }
+}
+
+export async function restoreSchedulePreferences(
+  userId: string,
+  snapshot: SchedulePreferenceSnapshot,
+): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [`e2e-schedule:${userId}`])
+    await client.query('delete from availability where user_id=$1', [userId])
+    for (const row of snapshot.windows) {
+      await client.query(`insert into availability(id,user_id,label,position,weekday,start_time,end_time)
+        values($1,$2,$3,$4,$5,$6::time,$7::time)`,
+      [row.id,userId,row.label,row.position,row.weekday,row.startTime,row.endTime])
+    }
+    if (snapshot.preferences) {
+      await client.query(`update match_preferences set public_places_only=$2,
+        availability_visible_before_match=$3 where user_id=$1`,
+      [userId,snapshot.preferences.publicOnly,snapshot.preferences.availabilityVisibleBeforeMatch])
+    } else {
+      await client.query('delete from match_preferences where user_id=$1', [userId])
+    }
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
 export type NotificationManagementSnapshot = {
   notifications: Array<{
     id: string
