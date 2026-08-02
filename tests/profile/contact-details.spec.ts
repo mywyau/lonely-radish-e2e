@@ -53,7 +53,10 @@ test('shared contact details are visible only while the members are matched', as
     await a.page.goto('/matches')
     const match = a.page.locator('article').filter({ hasText: memberB.name }).first()
     await match.getByRole('button', { name: 'Remove match' }).click()
+    const matchRemoved = a.page.waitForResponse(response =>
+      response.request().method() === 'DELETE' && /^\/api\/matches\/[^/]+$/.test(new URL(response.url()).pathname))
     await a.page.getByRole('button', { name: 'Yes, remove match' }).click()
+    expect((await matchRemoved).ok()).toBe(true)
 
     const profileResponse = await b.page.request.get(`/api/profiles/${memberA.slug}`)
     expect(profileResponse.ok()).toBe(true)
