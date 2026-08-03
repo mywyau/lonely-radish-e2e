@@ -3,15 +3,7 @@ import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 import { gotoPlanningRoom } from '../support/navigation.js'
-
-function nextSaturdayAt(hour: number) {
-  const result = new Date()
-  const days = (6 - result.getDay() + 7) % 7 || 7
-  result.setDate(result.getDate() + days)
-  result.setHours(hour, 0, 0, 0)
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${result.getFullYear()}-${pad(result.getMonth() + 1)}-${pad(result.getDate())}T${pad(hour)}:00`
-}
+import { chooseCustomProposalTime } from '../support/planning.js'
 
 async function createMatch(sender: Page, receiver: Page, recipient: { slug: string; name: string }, senderName: string) {
   await sender.goto(`/profiles/${recipient.slug}`)
@@ -28,8 +20,7 @@ async function createMatch(sender: Page, receiver: Page, recipient: { slug: stri
 
 async function fillProposal(page: Page, activity: string, hour: number, venue: string, meetingPoint: string) {
   await page.getByLabel('Suggest a different activity').fill(activity)
-  await page.getByLabel('Proposed date and time').fill(nextSaturdayAt(hour))
-  await page.getByRole('button', { name: 'Use this time' }).click()
+  await chooseCustomProposalTime(page, hour)
   await page.getByLabel('Venue name').fill(venue)
   await page.getByLabel('Public address').fill('Silk Street, London')
   await page.getByLabel('UK postcode').fill('EC2Y 8DS')

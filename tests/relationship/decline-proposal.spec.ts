@@ -3,15 +3,7 @@ import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 import { gotoPlanningRoom } from '../support/navigation.js'
-
-function nextSaturdayAtTwo() {
-  const result = new Date()
-  const days = (6 - result.getDay() + 7) % 7 || 7
-  result.setDate(result.getDate() + days)
-  result.setHours(14, 0, 0, 0)
-  const pad = (value: number) => String(value).padStart(2, '0')
-  return `${result.getFullYear()}-${pad(result.getMonth() + 1)}-${pad(result.getDate())}T14:00`
-}
+import { chooseCustomProposalTime } from '../support/planning.js'
 
 async function createMatch(sender: Page, receiver: Page, recipient: { slug: string; name: string }, senderName: string) {
   await sender.goto(`/profiles/${recipient.slug}`)
@@ -35,8 +27,7 @@ test('declining a date proposal notifies the sender and leaves the match open', 
     await createMatch(a.page, b.page, memberB, memberA.name)
     await gotoPlanningRoom(a.page, `/plans/${memberB.slug}?new=1`)
     await a.page.getByLabel('Suggest a different activity').fill('Coffee and a gallery walk')
-    await a.page.getByLabel('Proposed date and time').fill(nextSaturdayAtTwo())
-    await a.page.getByRole('button', { name: 'Use this time' }).click()
+    await chooseCustomProposalTime(a.page, 14)
     await a.page.getByLabel('Venue name').fill('Barbican Centre')
     await a.page.getByLabel('Public address').fill('Silk Street, London')
     await a.page.getByLabel('UK postcode').fill('EC2Y 8DS')

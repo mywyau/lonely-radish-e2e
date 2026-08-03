@@ -103,7 +103,7 @@ try {
   await database.query('begin')
   await database.query(`select pg_advisory_xact_lock(hashtext('lonely-radish-staging-seed'))`)
   const migration = await database.query(`select exists(
-    select 1 from schema_migrations where filename='20260905_optimize_discovery_interest_capacity.sql'
+    select 1 from schema_migrations where filename='20260906_optimize_matches_dashboard.sql'
   ) as current`)
   if (migration.rows[0]?.current !== true) throw new Error('Staging database migrations are not current')
 
