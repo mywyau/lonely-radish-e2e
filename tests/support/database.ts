@@ -411,6 +411,66 @@ export async function resetRelationshipPair(userA: string, userB: string): Promi
   }
 }
 
+export async function agePendingInterest(
+  senderId: string,
+  recipientId: string,
+  days = 15,
+): Promise<void> {
+  if (!Number.isInteger(days) || days < 14) {
+    throw new Error('Pending interest age must be at least 14 days')
+  }
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const result = await client.query(`update daily_interests set
+      created_at=now()-($3::int * interval '1 day')
+      where sender_id=$1 and recipient_id=$2 and resolved_at is null`,
+    [senderId,recipientId,days])
+    if (result.rowCount !== 1) {
+      throw new Error(`Pending interest not found for ${senderId} -> ${recipientId}`)
+    }
+  } finally {
+    await client.end()
+  }
+}
+
+export type InterestLifecycleState = {
+  resolution: string | null
+  resolvedAt: string | null
+  pendingCount: number
+  hasNotification: boolean
+}
+
+export async function interestLifecycleState(
+  senderId: string,
+  recipientId: string,
+): Promise<InterestLifecycleState> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    const interest = await client.query(`select resolution,resolved_at::text as "resolvedAt"
+      from daily_interests where sender_id=$1 and recipient_id=$2`, [senderId,recipientId])
+    if (!interest.rows[0]) {
+      throw new Error(`Interest not found for ${senderId} -> ${recipientId}`)
+    }
+    const inbox = await client.query(`select pending_count as "pendingCount"
+      from interest_inbox_state where user_id=$1`, [recipientId])
+    const notification = await client.query(`select exists(select 1 from notifications
+      where recipient_id=$1 and actor_id=$2 and kind='interest_received') as present`,
+    [recipientId,senderId])
+    return {
+      resolution: interest.rows[0].resolution,
+      resolvedAt: interest.rows[0].resolvedAt,
+      pendingCount: inbox.rows[0]?.pendingCount || 0,
+      hasNotification: notification.rows[0]?.present === true,
+    }
+  } finally {
+    await client.end()
+  }
+}
+
 export type PastConfirmedDateFixture = {
   matchId: string
   proposalId: string

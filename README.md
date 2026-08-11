@@ -110,6 +110,7 @@ The Chromium gate covers:
 - public pages and the signed-out gate;
 - onboarding validation and complete photo-optional setup;
 - two-account interest, pass, match, unmatch, and rematch behaviour;
+- 14-day interest expiry, sender withdrawal, silent notification cleanup, and closed-history labels;
 - two-sided age, gender, orientation, and distance eligibility enforcement;
 - the five-person received-interest cap, paused intake, and next-review reopening;
 - reciprocal matching that can bypass a full inbox without adding a sixth pending interest;
