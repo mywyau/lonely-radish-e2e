@@ -440,6 +440,8 @@ export type InterestLifecycleState = {
   resolvedAt: string | null
   pendingCount: number
   hasNotification: boolean
+  blocked: boolean
+  relatedReportCount: number
 }
 
 export async function interestLifecycleState(
@@ -450,7 +452,7 @@ export async function interestLifecycleState(
   const client = databaseClient()
   await client.connect()
   try {
-    const interest = await client.query(`select resolution,resolved_at::text as "resolvedAt"
+    const interest = await client.query(`select id,resolution,resolved_at::text as "resolvedAt"
       from daily_interests where sender_id=$1 and recipient_id=$2`, [senderId,recipientId])
     if (!interest.rows[0]) {
       throw new Error(`Interest not found for ${senderId} -> ${recipientId}`)
@@ -460,11 +462,18 @@ export async function interestLifecycleState(
     const notification = await client.query(`select exists(select 1 from notifications
       where recipient_id=$1 and actor_id=$2 and kind='interest_received') as present`,
     [recipientId,senderId])
+    const block = await client.query(`select exists(select 1 from blocks
+      where blocker_id=$1 and blocked_id=$2) as present`, [recipientId,senderId])
+    const reports = await client.query(`select count(*)::int as count from reports r
+      where r.reporter_id=$1 and r.reported_id=$2
+        and r.related_interest_id=$3`, [recipientId,senderId,interest.rows[0].id])
     return {
       resolution: interest.rows[0].resolution,
       resolvedAt: interest.rows[0].resolvedAt,
       pendingCount: inbox.rows[0]?.pendingCount || 0,
       hasNotification: notification.rows[0]?.present === true,
+      blocked: block.rows[0]?.present === true,
+      relatedReportCount: reports.rows[0]?.count || 0,
     }
   } finally {
     await client.end()

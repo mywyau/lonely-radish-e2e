@@ -1,12 +1,27 @@
 import 'dotenv/config'
 import { defineConfig, devices } from '@playwright/test'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const vercelBypassSecret = process.env.E2E_VERCEL_BYPASS_SECRET?.trim()
 const vercelBypassState = process.env.E2E_VERCEL_BYPASS_STATE || '.auth/vercel-bypass.json'
-if (vercelBypassSecret && !existsSync(resolve(process.cwd(), vercelBypassState))) {
-  throw new Error(`Missing ${vercelBypassState}; run ./scripts/prepare-staging.sh to create the Vercel bypass state`)
+if (vercelBypassSecret) {
+  const bypassPath = resolve(process.cwd(), vercelBypassState)
+  if (!existsSync(bypassPath)) {
+    throw new Error(`Missing ${vercelBypassState}; run ./scripts/prepare-staging.sh to create the Vercel bypass state`)
+  }
+  let bypassState: { cookies?: Array<{ name: string; expires: number }> }
+  try {
+    bypassState = JSON.parse(readFileSync(bypassPath, 'utf8'))
+  } catch {
+    throw new Error(`Invalid ${vercelBypassState}; run ./scripts/prepare-staging.sh to recreate it`)
+  }
+  const bypassCookie = bypassState.cookies?.find(cookie => cookie.name === '_vercel_jwt')
+  const expiresSoon = !bypassCookie ||
+    (bypassCookie.expires > 0 && bypassCookie.expires <= Date.now() / 1000 + 60)
+  if (expiresSoon) {
+    throw new Error(`Expired Vercel bypass state ${vercelBypassState}; run ./scripts/prepare-staging.sh to refresh it`)
+  }
 }
 
 export default defineConfig({

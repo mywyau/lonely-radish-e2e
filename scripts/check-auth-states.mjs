@@ -28,6 +28,22 @@ for (const key of ['memberA', 'memberB', 'newMember']) {
   if (!relativeState) fail(`Seed manifest is missing ${key}`)
   const statePath = resolve(process.cwd(), relativeState)
   if (!existsSync(statePath)) fail(`Missing browser state ${statePath}`)
+  let state
+  try {
+    state = JSON.parse(readFileSync(statePath, 'utf8'))
+  } catch {
+    fail(`Invalid browser state ${statePath}`)
+  }
+  const requiredCookies = ['lonely-radish-session']
+  if (process.env.E2E_VERCEL_BYPASS_SECRET?.trim()) requiredCookies.push('_vercel_jwt')
+  const now = Date.now() / 1000
+  for (const name of requiredCookies) {
+    const cookie = state.cookies?.find(candidate => candidate.name === name)
+    if (!cookie) fail(`Browser state ${statePath} is missing ${name}`)
+    if (cookie.expires > 0 && cookie.expires <= now + 60) {
+      fail(`Browser state ${statePath} has an expired ${name} cookie`)
+    }
+  }
 }
 
 console.log('Authenticated staging browser states are ready.')
