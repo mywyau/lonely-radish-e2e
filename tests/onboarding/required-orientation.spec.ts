@@ -7,7 +7,7 @@ const newMemberState = optionalStatePath('E2E_NEW_MEMBER_STATE')
 test.describe('new member onboarding', () => {
   test.describe.configure({ mode: 'serial' })
 
-  test('orientation identity and dating choices are required', async ({ browser }) => {
+  test('orientation identity remains required while detailed dating filters are progressive', async ({ browser }) => {
     test.skip(!newMemberState, 'Run npm run prepare:staging to create the incomplete account storage state')
     const context = await browser.newContext({
       baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
@@ -17,7 +17,8 @@ test.describe('new member onboarding', () => {
     await page.goto('/onboarding')
 
     await expect(page.getByLabel('Sexual orientation')).toBeVisible()
-    await expect(page.getByLabel('Weight', { exact: false })).toBeVisible()
+    await expect(page.getByLabel('Weight', { exact: false })).not.toBeVisible()
+    await expect(page.getByText('Age, distance, dating, lifestyle and schedule filters remain available later')).toBeVisible()
 
     const rejected = await context.request.put('/api/preferences/dating', {
       data: {
@@ -34,7 +35,7 @@ test.describe('new member onboarding', () => {
     await context.close()
   })
 
-  test('a new member can complete onboarding without uploading a photo', async ({ browser }) => {
+  test('a new member needs three activities and a photo to complete onboarding', async ({ browser }) => {
     test.skip(!newMemberState, 'Run npm run prepare:staging to create the incomplete account storage state')
     const userId = env('E2E_NEW_MEMBER_ID')
     await resetNewMemberOnboarding(userId)
@@ -52,35 +53,25 @@ test.describe('new member onboarding', () => {
       await page.getByLabel('Day').selectOption('15')
       await page.getByLabel('Month').selectOption('6')
       await page.getByLabel('Year').selectOption('1995')
-      await page.getByLabel('Short bio').fill('Synthetic member completing the staging onboarding release journey.')
+      await page.getByLabel('Short introduction').fill('Synthetic member completing the staging onboarding release journey.')
       await page.getByRole('button', { name: 'Continue' }).click()
 
-      await expect(page.getByRole('heading', { name: 'How do you racially or ethnically identify?' })).toBeVisible()
-      await page.getByRole('button', { name: 'White' }).click()
+      await expect(page.getByRole('heading', { name: 'Where should we look?' })).toBeVisible()
+      await page.getByLabel('UK postcode').fill('EC1A 1BB')
       await page.getByRole('button', { name: 'Continue' }).click()
 
       await expect(page.getByRole('heading', { name: 'What would you enjoy doing together?' })).toBeVisible()
       const customActivity = page.locator('input[placeholder^="Add something to"]').first()
-      await customActivity.fill('Staging coffee walk')
-      await customActivity.locator('xpath=following-sibling::button').click()
-      await page.getByRole('button', { name: 'Continue' }).click()
-
-      await expect(page.getByRole('heading', { name: 'Who would you like to meet?' })).toBeVisible()
-      await page.getByLabel('UK postcode').fill('EC1A 1BB')
-      await page.getByRole('button', { name: 'Continue' }).click()
-
-      await expect(page.getByRole('heading', { name: 'Who are you open to dating?' })).toBeVisible()
-      await page.getByRole('button', { name: 'Everyone', exact: true }).click()
-      await page.getByRole('button', { name: 'Bisexual', exact: true }).click()
-      await page.getByRole('button', { name: 'Continue' }).click()
-
-      await expect(page.getByRole('heading', { name: 'Add a profile photo' })).toBeVisible()
-      await page.getByRole('button', { name: 'Skip for now and finish' }).click()
-      await expect(page).toHaveURL(url => url.pathname === '/')
+      for (const activity of ['Staging coffee walk', 'Staging gallery walk', 'Staging market walk']) {
+        await customActivity.fill(activity)
+        await customActivity.locator('xpath=following-sibling::button').click()
+      }
+      await expect(page.getByRole('button', { name: 'Finish and discover people' })).toBeDisabled()
+      await expect(page.getByText('Add a photo to finish.')).toBeVisible()
 
       const status = await context.request.get('/api/onboarding/status')
       expect(status.ok()).toBe(true)
-      expect((await status.json()).complete).toBe(true)
+      expect((await status.json()).complete).toBe(false)
     } finally {
       await context.close()
       await resetNewMemberOnboarding(userId)

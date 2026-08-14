@@ -27,7 +27,7 @@ test('shared contact details are visible only while the members are matched', as
     await createMatch(a.page, b.page, memberB, memberA.name)
 
     const contactLoaded = a.page.waitForResponse(response =>
-      response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/profile/contact')
+      response.request().method() === 'GET' && new URL(response.url()).pathname === '/api/profile/me')
     await a.page.goto('/account/v2')
     expect((await contactLoaded).ok()).toBe(true)
     const contactToggle = a.page.getByRole('button', { name: /Contact details for matches/ })
@@ -51,10 +51,10 @@ test('shared contact details are visible only while the members are matched', as
 
     await a.page.goto('/matches')
     const match = a.page.locator('article').filter({ hasText: memberB.name }).first()
-    await match.getByRole('button', { name: 'Remove match' }).click()
+    await match.getByRole('button', { name: 'Close connection' }).click()
     const matchRemoved = a.page.waitForResponse(response =>
       response.request().method() === 'DELETE' && /^\/api\/matches\/[^/]+$/.test(new URL(response.url()).pathname))
-    await a.page.getByRole('button', { name: 'Yes, remove match' }).click()
+    await a.page.getByRole('button', { name: 'Yes, close connection' }).click()
     expect((await matchRemoved).ok()).toBe(true)
 
     const profileResponse = await b.page.request.get(`/api/profiles/${memberA.slug}`)

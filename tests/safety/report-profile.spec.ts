@@ -16,8 +16,12 @@ test('a signed-in member can submit a safety report without being forced to bloc
     await dialog.getByLabel('Reason').selectOption('spam')
     await dialog.getByLabel('Details', { exact: false }).fill('Synthetic staging release-gate report; safe to remove.')
     await dialog.getByLabel(`Also block ${memberB.name} immediately`).uncheck()
+    const submitted = session.page.waitForResponse(response => response.request().method() === 'POST'
+      && new URL(response.url()).pathname === `/api/profiles/${memberB.slug}/report`)
     await dialog.getByRole('button', { name: 'Submit report' }).click()
+    expect((await submitted).ok()).toBe(true)
     await expect(session.page).toHaveURL(/\/activities\?safety=reported$/)
+    await expect(session.page.getByText(/Undo available for/)).toHaveCount(0)
   } finally {
     await session.context.close()
     await resetRelationshipPair(memberA.id, memberB.id)
@@ -39,8 +43,12 @@ test('blocking a member hides both profiles and keeps the block manageable', asy
       const dialog = a.page.getByRole('dialog', { name: `Block ${memberB.name}?` })
       await expect(dialog.getByText(/You will no longer see each other/i)).toBeVisible()
       await expect(dialog.getByText(/They will not be told you blocked them/i)).toBeVisible()
+      const blocked = a.page.waitForResponse(response => response.request().method() === 'POST'
+        && new URL(response.url()).pathname === `/api/profiles/${memberB.slug}/block`)
       await dialog.getByRole('button', { name: 'Block person' }).click()
+      expect((await blocked).ok()).toBe(true)
       await expect(a.page).toHaveURL(/\/activities\?safety=blocked$/)
+      await expect(a.page.getByText(/Undo available for/)).toHaveCount(0)
     })
 
     await test.step('A can review the block from account settings', async () => {

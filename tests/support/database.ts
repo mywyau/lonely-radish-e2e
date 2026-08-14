@@ -5,7 +5,7 @@ const interestInboxFixtureIds = Array.from({ length: 5 }, (_, index) =>
   `e2e-interest-inbox-sender-${index + 1}`)
 const dailyLimitFixtureIds = Array.from({ length: 5 }, (_, index) =>
   `e2e-daily-limit-recipient-${index + 1}`)
-const activeMatchFixtureIds = Array.from({ length: 3 }, (_, index) =>
+const activeMatchFixtureIds = Array.from({ length: 5 }, (_, index) =>
   `e2e-active-match-person-${index + 1}`)
 const queuedMatchFixtureIds = Array.from({ length: 2 }, (_, index) =>
   `e2e-queued-match-person-${index + 1}`)
@@ -1034,7 +1034,7 @@ export async function seedMatchLimitFixtures(
   queuedCount: number,
 ): Promise<MatchLimitFixtures> {
   if (!Number.isInteger(activeCount) || activeCount < 0 || activeCount > activeMatchFixtureIds.length) {
-    throw new Error('Active match fixture count must be between 0 and 3')
+    throw new Error(`Active match fixture count must be between 0 and ${activeMatchFixtureIds.length}`)
   }
   if (!Number.isInteger(queuedCount) || queuedCount < 0 || queuedCount > queuedMatchFixtureIds.length) {
     throw new Error('Queued match fixture count must be between 0 and 2')

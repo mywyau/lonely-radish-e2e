@@ -15,22 +15,22 @@ test('concurrent queue activation cannot exceed the limit or activate a match tw
 
   try {
     await test.step('only one of two waiting matches can claim the final active slot', async () => {
-      const fixtures = await seedMatchLimitFixtures(memberA.id, 2, 2)
+      const fixtures = await seedMatchLimitFixtures(memberA.id, 4, 2)
       await a.page.goto('/matches')
       const responses = await Promise.all(fixtures.queued.map(match =>
         a.page.request.post(`/api/matches/${match.matchId}/activate`)))
       expect(responses.map(response => response.status()).sort()).toEqual([200, 409])
 
       const state = await matchLimitState(memberA.id, fixtures.queued.map(match => match.matchId))
-      expect(state.activeCount).toBe(3)
+      expect(state.activeCount).toBe(5)
       expect(Object.values(state.statuses).filter(status => status === 'active')).toHaveLength(1)
       expect(Object.values(state.statuses).filter(status => status === 'queued')).toHaveLength(1)
       await a.page.reload()
-      await expect(a.page.getByText('3/3', { exact: true })).toBeVisible()
+      await expect(a.page.getByText(/5 active connections/)).toBeVisible()
     })
 
     await test.step('the same queued match cannot be activated twice', async () => {
-      const fixtures = await seedMatchLimitFixtures(memberA.id, 2, 1)
+      const fixtures = await seedMatchLimitFixtures(memberA.id, 4, 1)
       const matchId = fixtures.queued[0].matchId
       const responses = await Promise.all([
         a.page.request.post(`/api/matches/${matchId}/activate`),
@@ -38,7 +38,7 @@ test('concurrent queue activation cannot exceed the limit or activate a match tw
       ])
       expect(responses.map(response => response.status()).sort()).toEqual([200, 404])
       const state = await matchLimitState(memberA.id, [matchId])
-      expect(state.activeCount).toBe(3)
+      expect(state.activeCount).toBe(5)
       expect(state.statuses[matchId]).toBe('active')
     })
   } finally {

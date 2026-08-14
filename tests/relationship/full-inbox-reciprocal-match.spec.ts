@@ -42,7 +42,7 @@ test('a full inbox still allows an existing interest to become a mutual match', 
 
     await seedFullInterestInbox(memberA.id)
     await a.page.goto('/interests/received')
-    await expect(a.page.getByText('5 of 5 current interests')).toBeVisible()
+    await expect(a.page.getByText(/5 people are waiting for your answer/)).toBeVisible()
 
     const reciprocal = await sendInterest(b.page, memberA.slug)
     expect(reciprocal.ok()).toBe(true)

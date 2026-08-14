@@ -1,11 +1,13 @@
 import { expect, test, type Page } from '@playwright/test'
-import { reopenInterestInbox, resetRelationshipPair } from '../support/database.js'
+import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 
 async function sendInterest(page: Page, recipientSlug: string, recipientName: string) {
   await page.goto(`/profiles/${recipientSlug}`)
-  const button = page.getByRole('button', { name: new RegExp(`Show interest(?: in ${recipientName})?(?: again)?`, 'i') })
+  const button = page.getByRole('button', {
+    name: new RegExp(`(?:Show interest(?: in ${recipientName})?(?: again)?|Ask ${recipientName} to reconnect)`, 'i'),
+  })
   await expect(button).toBeEnabled()
   page.once('dialog', dialog => dialog.accept())
   await button.click()
@@ -25,17 +27,20 @@ async function removeMatch(page: Page, otherName: string) {
   await page.goto('/matches')
   const card = page.locator('article').filter({ hasText: otherName }).first()
   await expect(card).toBeVisible()
-  await card.getByRole('button', { name: 'Remove match' }).click()
-  await page.getByRole('button', { name: 'Yes, remove match' }).click()
+  await card.getByRole('button', { name: 'Close connection' }).click()
+  const closed = page.waitForResponse(response => response.request().method() === 'DELETE'
+    && /\/api\/matches\/[^/]+$/.test(new URL(response.url()).pathname))
+  await page.getByRole('button', { name: 'Yes, close connection' }).click()
+  expect((await closed).ok()).toBe(true)
   await expect(card).toBeHidden()
 }
 
 async function sendApology(page: Page, recipientSlug: string) {
   await page.goto(`/profiles/${recipientSlug}?connection=past`)
-  const form = page.locator('form').filter({ hasText: 'Send a private message for this ended match' })
+  const form = page.locator('form').filter({ hasText: 'Send a note before asking to reconnect' })
   await form.locator('textarea').fill('I am sorry for ending our match abruptly. I would still like to reconnect.')
-  await form.getByRole('button', { name: 'Send message' }).click()
-  await expect(page.getByText('You can now show interest again.')).toBeVisible()
+  await form.getByRole('button', { name: 'Send note' }).click()
+  await expect(page.getByText(/Your note was sent/)).toBeVisible()
 }
 
 test.describe('repeated second-chance lifecycle', () => {
@@ -66,9 +71,6 @@ test.describe('repeated second-chance lifecycle', () => {
       await test.step('A ends the match and earns a second chance', async () => {
         await removeMatch(a.page, memberB.name)
         await sendApology(a.page, memberB.slug)
-        // Accepting an interest deliberately paces the recipient's inbox until
-        // the next local day. Advance that test state before exercising rematch.
-        await reopenInterestInbox(memberB.id)
         await sendInterest(a.page, memberB.slug, memberB.name)
         await acceptInterest(b.page, memberA.name)
       })

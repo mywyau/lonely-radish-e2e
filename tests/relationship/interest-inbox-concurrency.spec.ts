@@ -64,7 +64,7 @@ test('simultaneous interest attempts cannot overfill the recipient inbox', async
       .filter({ hasText: 'This person isn’t accepting new interests right now.' })).toBeVisible()
 
     await b.page.goto('/interests/received')
-    await expect(b.page.getByText('5 of 5 current interests')).toBeVisible()
+    await expect(b.page.getByText(/5 people are waiting for your answer/)).toBeVisible()
     await expect(b.page.locator('article')).toHaveCount(5)
     const newSenders = b.page.locator('article').filter({
       hasText: new RegExp(`${memberA.name}|${newMember.name}`),

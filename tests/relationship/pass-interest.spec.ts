@@ -3,7 +3,7 @@ import { resetRelationshipPair } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 
-test('passing on an interest is final and survives a reload', async ({ browser }) => {
+test('a recipient can undo an accidental not-for-me decision before making it final', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
   const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), name: env('E2E_MEMBER_B_NAME'), slug: env('E2E_MEMBER_B_SLUG') }
@@ -20,24 +20,35 @@ test('passing on an interest is final and survives a reload', async ({ browser }
       await expect(a.page.getByText(new RegExp(`Interest sent to ${memberB.name}`, 'i'))).toBeVisible()
     })
 
-    await test.step('B passes with a clear irreversible warning', async () => {
+    await test.step('B chooses not for me and restores the interest from the undo notice', async () => {
       await b.page.goto('/interests/received')
       const card = b.page.locator('article').filter({ hasText: memberA.name }).first()
       await expect(card).toBeVisible()
       const dialogPromise = b.page.waitForEvent('dialog')
-      const clickPromise = card.getByRole('button', { name: 'Pass' }).click()
+      const clickPromise = card.getByRole('button', { name: 'Not for me' }).click()
       const dialog = await dialogPromise
-      expect(dialog.message()).toContain(`Pass on ${memberA.name}’s interest?`)
-      expect(dialog.message()).toContain('you will not be able to return to it')
+      expect(dialog.message()).toContain(`Decide not to match with ${memberA.name}?`)
       await dialog.accept()
       await clickPromise
-      await expect(b.page.getByText(
-        `You passed on ${memberA.name}. That decision is final, and no replacement will appear today.`,
-      )).toBeVisible()
       await expect(card).toBeHidden()
+      const undoNotice = b.page.getByRole('status').filter({
+        has: b.page.getByRole('button', { name: 'Undo' }),
+        hasText: `You chose not to match with ${memberA.name}.`,
+      })
+      await expect(undoNotice).toContainText(/Undo available for \d+s/)
+      const restored = b.page.waitForResponse(response => response.request().method() === 'POST'
+        && /\/api\/interests\/[^/]+\/undo$/.test(new URL(response.url()).pathname))
+      await undoNotice.getByRole('button', { name: 'Undo' }).click()
+      expect((await restored).ok()).toBe(true)
+      await expect(card).toBeVisible()
+      await expect(b.page.getByText(`${memberA.name} is back in your interests.`)).toBeVisible()
     })
 
-    await test.step('the passed interest does not return', async () => {
+    await test.step('a second decision persists after leaving the page', async () => {
+      const card = b.page.locator('article').filter({ hasText: memberA.name }).first()
+      b.page.once('dialog', dialog => dialog.accept())
+      await card.getByRole('button', { name: 'Not for me' }).click()
+      await expect(card).toBeHidden()
       await b.page.reload()
       await expect(b.page.locator('article').filter({ hasText: memberA.name })).toHaveCount(0)
     })

@@ -28,7 +28,7 @@ test('dating preferences persist the grouped orientation and broad ethnicity cho
         'aria-pressed', String(loadedPreferences.orientations.includes(orientationValues[label])),
       )
     }
-    await a.page.getByRole('button', { name: 'Everyone', exact: true }).click()
+    await a.page.getByRole('button', { name: 'All genders', exact: true }).click()
     for (const label of orientationLabels) {
       const button = a.page.getByRole('button', { name: label, exact: true })
       if (await button.getAttribute('aria-pressed') === 'true') await button.click()
@@ -55,7 +55,7 @@ test('dating preferences persist the grouped orientation and broad ethnicity cho
       && new URL(response.url()).pathname === '/api/preferences/dating')
     await a.page.reload()
     expect((await reloadedPreferences).ok()).toBe(true)
-    await expect(a.page.getByRole('button', { name: 'Everyone', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(a.page.getByRole('button', { name: 'All genders', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(a.page.getByRole('button', { name: 'Homosexual', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(a.page.getByRole('button', { name: 'Bisexual', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(a.page.getByRole('button', { name: 'Heterosexual', exact: true })).toHaveAttribute('aria-pressed', 'false')

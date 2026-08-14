@@ -8,7 +8,7 @@ test('public landing page loads without server errors', async ({ page }) => {
 
   await page.goto('/')
   await expect(page.locator('body')).toBeVisible()
-  await expect(page).toHaveTitle(/Meet someone over something you both enjoy/i)
+  await expect(page).toHaveTitle(/Intentional dating built around real plans/i)
   expect(serverErrors).toEqual([])
 })
 

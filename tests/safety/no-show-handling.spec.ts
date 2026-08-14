@@ -22,7 +22,7 @@ async function loadFollowUp(page: Page, proposalId: string) {
   await page.goto(`/dates/${proposalId}/follow-up`)
   expect((await followUp).ok()).toBe(true)
   expect((await outcome).ok()).toBe(true)
-  await expect(page.getByRole('heading', { name: /Would you meet .+ again\?/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /How did your date with .+ go\?/ })).toBeVisible()
 }
 
 async function reportNoShow(page: Page, proposalId: string) {

@@ -16,7 +16,6 @@ test('schedule changes persist and pre-match visibility remains under the member
   await resetRelationshipPair(memberA.id, memberB.id)
   const a = await openMember(browser, 'E2E_MEMBER_A_STATE')
   const b = await openMember(browser, 'E2E_MEMBER_B_STATE')
-  const saturdayLabel = 'Saturday · 11:30–16:45'
 
   async function saveSchedule() {
     const saved = a.page.waitForResponse(response => response.request().method() === 'PUT'
@@ -64,7 +63,9 @@ test('schedule changes persist and pre-match visibility remains under the member
 
     await b.page.goto(`/profiles/${memberA.slug}`)
     await expect(b.page.getByRole('heading', { name: 'Usually free' }).first()).toBeVisible()
-    await expect(b.page.getByText(saturdayLabel, { exact: true }).first()).toBeVisible()
+    const publicAvailability = b.page.getByRole('heading', { name: 'Usually free' }).first().locator('xpath=ancestor::section[1]')
+    await expect(publicAvailability.getByText('Saturday', { exact: true })).toBeVisible()
+    await expect(publicAvailability.getByText('11:30–16:45', { exact: true })).toBeVisible()
 
     await a.page.getByLabel('Let people see this before you match', { exact: false }).uncheck()
     await saveSchedule()

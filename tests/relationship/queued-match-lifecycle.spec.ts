@@ -23,7 +23,7 @@ async function sendVisibleInterest(page: Page, slug: string) {
   return responsePromise
 }
 
-test('a full free match list queues, explains, and promotes the oldest eligible match', async ({ browser }) => {
+test('a full connection list queues, explains, and promotes the oldest eligible match', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
   const memberA = {
     id: env('E2E_MEMBER_A_ID'),
@@ -39,14 +39,14 @@ test('a full free match list queues, explains, and promotes the oldest eligible 
   await clearMatchLimitFixtures(memberA.id)
   await clearMatchLimitFixtures(memberB.id)
   await configureEligibilityScenario(memberA.id, memberB.id, 'compatible')
-  const capacity = await seedMatchLimitFixtures(memberA.id, 3, 0)
+  const capacity = await seedMatchLimitFixtures(memberA.id, 5, 0)
   const a = await openMember(browser, 'E2E_MEMBER_A_STATE')
   const b = await openMember(browser, 'E2E_MEMBER_B_STATE')
   let queuedMatchId = ''
   let newerQueuedMatchId = ''
 
   try {
-    await test.step('a new mutual match waits when a free member already has three active matches', async () => {
+    await test.step('a new mutual match waits when a member already has five active matches', async () => {
       const first = await sendVisibleInterest(a.page, memberB.slug)
       expect(first.ok()).toBe(true)
       expect((await first.json()).matched).toBe(false)
@@ -66,12 +66,12 @@ test('a full free match list queues, explains, and promotes the oldest eligible 
       await Promise.all([a.page.goto('/matches'), b.page.goto('/matches')])
       const aCard = a.page.locator('article').filter({ hasText: memberB.name }).first()
       const bCard = b.page.locator('article').filter({ hasText: memberA.name }).first()
-      await expect(a.page.getByText('3/3', { exact: true })).toBeVisible()
-      await expect(a.page.getByRole('heading', { name: 'Matches waiting' })).toBeVisible()
-      await expect(aCard.getByText('Waiting for space', { exact: true })).toBeVisible()
-      await expect(bCard.getByText('Waiting for space', { exact: true })).toBeVisible()
-      await expect(aCard.getByRole('button', { name: 'Activate match' })).toBeVisible()
-      await expect(bCard.getByRole('button', { name: 'Activate match' })).toBeVisible()
+      await expect(a.page.getByText(/5 active connections/)).toBeVisible()
+      await expect(a.page.getByRole('heading', { name: 'Waiting to start' })).toBeVisible()
+      await expect(aCard.getByText('Ready when there’s room', { exact: true })).toBeVisible()
+      await expect(bCard.getByText('Ready when there’s room', { exact: true })).toBeVisible()
+      await expect(aCard.getByRole('button', { name: 'See if you can start' })).toBeVisible()
+      await expect(bCard.getByRole('button', { name: 'See if you can start' })).toBeVisible()
 
       const matches = await a.page.request.get('/api/matches')
       const body = await matches.json()
@@ -102,9 +102,12 @@ test('a full free match list queues, explains, and promotes the oldest eligible 
       newerQueuedMatchId = newerQueued.matchId
       await a.page.reload()
       const activeCard = a.page.locator('article').filter({ hasText: capacity.active[0].name }).first()
-      await activeCard.getByRole('button', { name: 'Remove match' }).click()
+      await activeCard.getByRole('button', { name: 'Close connection' }).click()
       const dialog = a.page.getByRole('alertdialog')
-      await dialog.getByRole('button', { name: 'Yes, remove match' }).click()
+      const closed = a.page.waitForResponse(response => response.request().method() === 'DELETE'
+        && /^\/api\/matches\/[^/]+$/.test(new URL(response.url()).pathname))
+      await dialog.getByRole('button', { name: 'Yes, close connection' }).click()
+      expect((await closed).ok()).toBe(true)
       await expect(activeCard).toBeHidden()
 
       await Promise.all([a.page.reload(), b.page.reload()])
@@ -112,10 +115,10 @@ test('a full free match list queues, explains, and promotes the oldest eligible 
       const bCard = b.page.locator('article').filter({ hasText: memberA.name }).first()
       await expect(aCard.getByText('Ready to plan', { exact: true })).toBeVisible()
       await expect(bCard.getByText('Ready to plan', { exact: true })).toBeVisible()
-      await expect(a.page.getByText('3/3', { exact: true })).toBeVisible()
+      await expect(a.page.getByText(/5 active connections/)).toBeVisible()
 
       const state = await matchLimitState(memberA.id, [queuedMatchId, newerQueuedMatchId])
-      expect(state.activeCount).toBe(3)
+      expect(state.activeCount).toBe(5)
       expect(state.statuses[queuedMatchId]).toBe('active')
       expect(state.statuses[newerQueuedMatchId]).toBe('queued')
     })

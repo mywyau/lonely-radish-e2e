@@ -16,7 +16,7 @@ async function loadFollowUp(page: Page, proposalId: string) {
   await page.goto(`/dates/${proposalId}/follow-up`)
   expect((await followUp).ok()).toBe(true)
   expect((await outcome).ok()).toBe(true)
-  await expect(page.getByRole('heading', { name: /Would you meet .+ again\?/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /How did your date with .+ go\?/ })).toBeVisible()
 }
 
 async function confirmDateHappened(page: Page, proposalId: string) {
@@ -35,13 +35,24 @@ async function answerMeetAgain(
   answer: 'yes' | 'no',
   note: string,
 ) {
-  const buttonName = answer === 'yes' ? 'Yes, I’d meet again' : 'No, but I wish them well'
+  const buttonName = answer === 'yes' ? 'Yes, I’d like another date' : 'No, I’d like to leave it here'
   await page.getByRole('button', { name: buttonName, exact: true }).click()
   await page.getByLabel('Optional note').fill(note)
   const saved = page.waitForResponse(response => response.request().method() === 'POST'
     && new URL(response.url()).pathname === `/api/dates/${proposalId}/follow-up`)
-  await page.getByRole('button', { name: 'Submit private answer' }).click()
+  await page.getByRole('button', { name: 'Save my choice' }).click()
   expect((await saved).ok()).toBe(true)
+}
+
+async function stageNoAnswer(page: Page, personName: string, note: string) {
+  await page.getByRole('button', { name: 'No, I’d like to leave it here', exact: true }).click()
+  await page.getByLabel('Optional note').fill(note)
+  await page.getByRole('button', { name: 'Save my choice' }).click()
+  const undoNotice = page.getByRole('status').filter({
+    hasText: `You chose to leave the connection with ${personName} here.`,
+  })
+  await expect(undoNotice).toContainText(/Undo available for \d+s/)
+  return undoNotice
 }
 
 async function closeSessionsAndReset(
@@ -76,7 +87,7 @@ test.describe('post-date private check-in', () => {
       await confirmDateHappened(b.page,fixture.proposalId)
 
       await answerMeetAgain(a.page,fixture.proposalId,'yes',aliceNote)
-      await expect(a.page.getByRole('heading', { name: 'Your answer is saved.' })).toBeVisible()
+      await expect(a.page.getByRole('heading', { name: 'Your choice is saved.' })).toBeVisible()
       await expect(a.page.getByText(`We’re waiting for ${bMember.name}`, { exact: false })).toBeVisible()
       const privateResult = await a.page.request.get(`/api/dates/${fixture.proposalId}/follow-up`)
       expect(privateResult.ok()).toBe(true)
@@ -87,11 +98,11 @@ test.describe('post-date private check-in', () => {
       await loadFollowUp(b.page,fixture.proposalId)
       await expect(b.page.getByText(aliceNote, { exact: false })).toHaveCount(0)
       await answerMeetAgain(b.page,fixture.proposalId,'yes',blairNote)
-      await expect(b.page.getByRole('heading', { name: 'You both want to meet again.' })).toBeVisible()
+      await expect(b.page.getByRole('heading', { name: 'You both chose another date.' })).toBeVisible()
       await expect(b.page.getByText(aliceNote, { exact: false }).first()).toBeVisible()
 
       await loadFollowUp(a.page,fixture.proposalId)
-      await expect(a.page.getByRole('heading', { name: 'You both want to meet again.' })).toBeVisible()
+      await expect(a.page.getByRole('heading', { name: 'You both chose another date.' })).toBeVisible()
       await expect(a.page.getByText(blairNote, { exact: false }).first()).toBeVisible()
       expect(await postDateFixtureState(fixture)).toEqual({
         matchStatus: 'active', followUpResponses: 2, attendedResponses: 2,
@@ -113,8 +124,17 @@ test.describe('post-date private check-in', () => {
 
     try {
       await loadFollowUp(a.page,fixture.proposalId)
+      const undoNotice = await stageNoAnswer(a.page,bMember.name,privateNoNote)
+      expect(await postDateFixtureState(fixture)).toMatchObject({
+        matchStatus: 'active', followUpResponses: 0,
+      })
+      await undoNotice.getByRole('button', { name: 'Undo' }).click()
+      await expect(a.page.getByRole('button', { name: 'Save my choice' })).toBeVisible()
+      expect(await postDateFixtureState(fixture)).toMatchObject({
+        matchStatus: 'active', followUpResponses: 0,
+      })
       await answerMeetAgain(a.page,fixture.proposalId,'no',privateNoNote)
-      await expect(a.page.getByRole('heading', { name: 'Your answer is saved.' })).toBeVisible()
+      await expect(a.page.getByRole('heading', { name: 'Your choice is saved.' })).toBeVisible()
 
       await loadFollowUp(b.page,fixture.proposalId)
       await expect(b.page.getByText(privateNoNote, { exact: false })).toHaveCount(0)
@@ -123,21 +143,21 @@ test.describe('post-date private check-in', () => {
       expect(await hiddenResult.json()).toMatchObject({ bothResponded: false, theirChoice: null, theirMessage: null })
 
       await answerMeetAgain(b.page,fixture.proposalId,'yes',privateYesNote)
-      await expect(b.page.getByRole('heading', { name: 'Your answers were different.' })).toBeVisible()
+      await expect(b.page.getByRole('heading', { name: 'You didn’t both choose another date.' })).toBeVisible()
       await expect(b.page.getByText(privateNoNote, { exact: false }).first()).toBeVisible()
       expect((await postDateFixtureState(fixture)).matchStatus).toBe('unmatched')
 
       await loadFollowUp(a.page,fixture.proposalId)
-      await expect(a.page.getByRole('heading', { name: 'Changed your mind?' })).toBeVisible()
-      await a.page.getByLabel('Apology note').fill(reconsideration)
+      await expect(a.page.getByRole('heading', { name: 'Want to change your answer?' })).toBeVisible()
+      await a.page.getByLabel(`Note to ${bMember.name}`).fill(reconsideration)
       const reconsidered = a.page.waitForResponse(response => response.request().method() === 'POST'
         && new URL(response.url()).pathname === `/api/dates/${fixture.proposalId}/follow-up/reconsider`)
-      await a.page.getByRole('button', { name: 'Change to yes and send note' }).click()
+      await a.page.getByRole('button', { name: 'Change my answer to yes' }).click()
       expect((await reconsidered).ok()).toBe(true)
-      await expect(a.page.getByRole('heading', { name: 'You both want to meet again.' })).toBeVisible()
+      await expect(a.page.getByRole('heading', { name: 'You both chose another date.' })).toBeVisible()
 
       await loadFollowUp(b.page,fixture.proposalId)
-      await expect(b.page.getByRole('heading', { name: 'You both want to meet again.' })).toBeVisible()
+      await expect(b.page.getByRole('heading', { name: 'You both chose another date.' })).toBeVisible()
       await expect(b.page.getByText(reconsideration, { exact: false }).first()).toBeVisible()
       expect((await postDateFixtureState(fixture)).matchStatus).toBe('active')
     } finally {
