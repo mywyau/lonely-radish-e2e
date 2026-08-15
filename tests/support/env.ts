@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 type Account = { id: string; email: string; name: string; slug: string; state: string }
-type Manifest = { version: number; target: string; accounts: { memberA: Account; memberB: Account; newMember: Account } }
+type Manifest = { version: number; target: string; accounts: {
+  memberA: Account
+  memberB: Account
+  newMember: Account
+  deletionMember?: Account
+} }
 
 function seedManifest(): Manifest | null {
   const path = resolve(process.cwd(), process.env.E2E_SEED_MANIFEST || '.auth/staging-users.json')
@@ -23,6 +28,10 @@ const manifestValues: Record<string, () => string | undefined> = {
   E2E_NEW_MEMBER_NAME: () => seedManifest()?.accounts.newMember.name,
   E2E_NEW_MEMBER_SLUG: () => seedManifest()?.accounts.newMember.slug,
   E2E_NEW_MEMBER_STATE: () => seedManifest()?.accounts.newMember.state,
+  E2E_DELETION_MEMBER_ID: () => seedManifest()?.accounts.deletionMember?.id,
+  E2E_DELETION_MEMBER_EMAIL: () => seedManifest()?.accounts.deletionMember?.email,
+  E2E_DELETION_MEMBER_SLUG: () => seedManifest()?.accounts.deletionMember?.slug,
+  E2E_DELETION_MEMBER_STATE: () => seedManifest()?.accounts.deletionMember?.state,
 }
 
 export function env(name: string): string {
@@ -31,14 +40,17 @@ export function env(name: string): string {
   return value
 }
 
-export function statePath(name: 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E2E_NEW_MEMBER_STATE'): string {
+export type MemberStateName = 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E2E_NEW_MEMBER_STATE'
+  | 'E2E_DELETION_MEMBER_STATE'
+
+export function statePath(name: MemberStateName): string {
   const path = resolve(process.cwd(), env(name))
   if (!existsSync(path)) throw new Error(`${name} does not exist at ${path}`)
   return path
 }
 
 export function optionalStatePath(
-  name: 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E2E_NEW_MEMBER_STATE',
+  name: MemberStateName,
 ): string | null {
   try {
     return statePath(name)

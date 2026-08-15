@@ -38,6 +38,11 @@ https://YOUR-STAGING-HOST/api/auth/callback
 
 Choose three dedicated test email addresses that you control. The seed script creates them if absent and reconciles existing database-connection test users to `E2E_TEST_PASSWORD`; it never deletes Auth0 users. Do not use personal or production identities.
 
+To include the account-deletion journey, configure a fourth disposable address as
+`E2E_DELETION_MEMBER_EMAIL`. Preparation recreates this account before each gate,
+and the test permanently removes it from Auth0 and the staging database. The test
+is skipped when the disposable address is not configured.
+
 ### E2E safety configuration
 
 Complete `.env`. The important locks are:
@@ -57,7 +62,7 @@ E2E_EXPECTED_DATABASE_HOST=YOUR-EXACT-DATABASE-HOST
 E2E_EXPECTED_DATABASE_PROJECT_REF=YOUR-STAGING-SUPABASE-PROJECT-REF
 ```
 
-Also add the staging Auth0 Management credentials, connection name, one strong test password, and the three test emails shown in `.env.example`.
+Also add the staging Auth0 Management credentials, connection name, one strong test password, and the test emails shown in `.env.example`.
 
 Four independent checks must agree before anything can write to PostgreSQL: staging environment, application host, database host, and Supabase project reference. The scripts refuse the production application origin.
 
@@ -181,6 +186,7 @@ Add these environment secrets:
 - `E2E_MEMBER_A_EMAIL`
 - `E2E_MEMBER_B_EMAIL`
 - `E2E_NEW_MEMBER_EMAIL`
+- `E2E_DELETION_MEMBER_EMAIL` to include the destructive account-deletion journey
 - `E2E_VERCEL_BYPASS_SECRET` when deployment protection is enabled
 
 The workflow sets the staging and database-reset safety flags itself. It does

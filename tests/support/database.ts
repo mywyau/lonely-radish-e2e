@@ -668,6 +668,38 @@ export async function resetNewMemberOnboarding(userId: string): Promise<void> {
   }
 }
 
+export async function waitForAccountDeletion(
+  jobId: number,
+  userId: string,
+  timeoutMs = 60_000,
+): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  const deadline = Date.now() + timeoutMs
+  try {
+    while (Date.now() < deadline) {
+      const [job, user] = await Promise.all([
+        client.query(`select status,last_error as "lastError" from account_deletion_jobs where id=$1`, [jobId]),
+        client.query('select account_status,deletion_status from users where id=$1', [userId]),
+      ])
+      const deletion = job.rows[0]
+      if (deletion?.status === 'completed' && !user.rows[0]) return
+      if (deletion?.status === 'failed') {
+        throw new Error(`Account deletion job ${jobId} failed: ${deletion.lastError || 'unknown error'}`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+    const [job, user] = await Promise.all([
+      client.query(`select status,last_error as "lastError" from account_deletion_jobs where id=$1`, [jobId]),
+      client.query('select account_status,deletion_status from users where id=$1', [userId]),
+    ])
+    throw new Error(`Account deletion job ${jobId} did not complete within ${timeoutMs}ms; job=${JSON.stringify(job.rows[0] || null)} user=${JSON.stringify(user.rows[0] || null)}`)
+  } finally {
+    await client.end()
+  }
+}
+
 export async function clearContactDetails(userId: string): Promise<void> {
   assertStagingDatabaseTarget()
   const client = databaseClient()

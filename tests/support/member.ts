@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { statePath } from './env.js'
+import { statePath, type MemberStateName } from './env.js'
 
 export type MemberSession = {
   context: BrowserContext
@@ -27,7 +27,7 @@ function assertFreshMemberState(path: string) {
 
 export async function openMember(
   browser: Browser,
-  state: 'E2E_MEMBER_A_STATE' | 'E2E_MEMBER_B_STATE' | 'E2E_NEW_MEMBER_STATE',
+  state: MemberStateName,
 ): Promise<MemberSession> {
   const memberState = statePath(state)
   assertFreshMemberState(memberState)

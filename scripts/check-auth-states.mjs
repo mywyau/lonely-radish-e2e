@@ -23,7 +23,9 @@ if (manifest.target !== baseUrl.origin) {
   fail(`Seed manifest targets ${manifest.target || 'an unknown origin'}, expected ${baseUrl.origin}`)
 }
 
-for (const key of ['memberA', 'memberB', 'newMember']) {
+const accountKeys = ['memberA', 'memberB', 'newMember']
+if (manifest.accounts?.deletionMember) accountKeys.push('deletionMember')
+for (const key of accountKeys) {
   const relativeState = manifest.accounts?.[key]?.state
   if (!relativeState) fail(`Seed manifest is missing ${key}`)
   const statePath = resolve(process.cwd(), relativeState)

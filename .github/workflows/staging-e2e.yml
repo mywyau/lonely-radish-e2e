@@ -45,6 +45,7 @@ jobs:
       E2E_MEMBER_A_EMAIL: ${{ secrets.E2E_MEMBER_A_EMAIL }}
       E2E_MEMBER_B_EMAIL: ${{ secrets.E2E_MEMBER_B_EMAIL }}
       E2E_NEW_MEMBER_EMAIL: ${{ secrets.E2E_NEW_MEMBER_EMAIL }}
+      E2E_DELETION_MEMBER_EMAIL: ${{ secrets.E2E_DELETION_MEMBER_EMAIL }}
       E2E_VERCEL_BYPASS_SECRET: ${{ secrets.E2E_VERCEL_BYPASS_SECRET }}
 
     steps:

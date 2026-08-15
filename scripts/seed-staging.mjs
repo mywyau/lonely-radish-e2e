@@ -14,6 +14,11 @@ const definitions = [
   { key: 'memberB', email: required('E2E_MEMBER_B_EMAIL'), name: 'Staging Blair', firstName: 'Blair', lastName: 'Test', slug: 'staging-blair', complete: true, longitude: -0.1180, latitude: 51.5090 },
   { key: 'newMember', email: required('E2E_NEW_MEMBER_EMAIL'), name: 'Staging New Member', firstName: 'New', lastName: 'Member', slug: 'staging-new-member', complete: false },
 ]
+const deletionEmail = process.env.E2E_DELETION_MEMBER_EMAIL?.trim()
+if (deletionEmail) definitions.push({
+  key: 'deletionMember', email: deletionEmail, name: 'Staging Delete Me', firstName: 'Delete', lastName: 'Test',
+  slug: 'staging-delete-me', complete: true, longitude: -0.1357, latitude: 51.4975,
+})
 
 async function managementToken() {
   const response = await fetch(`https://${domain}/oauth/token`, {
@@ -93,7 +98,8 @@ for (const definition of definitions) {
     name: definition.name,
     slug: definition.slug,
     state: definition.key === 'memberA' ? '.auth/member-a.json'
-      : definition.key === 'memberB' ? '.auth/member-b.json' : '.auth/new-member.json',
+      : definition.key === 'memberB' ? '.auth/member-b.json'
+        : definition.key === 'newMember' ? '.auth/new-member.json' : '.auth/deletion-member.json',
   }
 }
 
