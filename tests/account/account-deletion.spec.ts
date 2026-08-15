@@ -30,8 +30,12 @@ test('a member confirms permanent account deletion and loses access', async ({ b
       expect(await rejected.text()).toContain('Confirmation text did not match')
 
       await member.page.goto('/account/v2')
+      // Wait for the client-side account load to prove Vue has hydrated the
+      // server-rendered controls before clicking the destructive-action panel.
+      await expect(member.page.getByText('Loading account details…')).toBeHidden()
       await member.page.getByRole('button', { name: 'Delete my account' }).click()
       const confirmation = member.page.getByPlaceholder('Type DELETE to confirm')
+      await expect(confirmation).toBeVisible()
       await confirmation.fill('keep')
       await expect(member.page.getByRole('button', { name: 'Continue to final confirmation' })).toBeDisabled()
       expect((await member.page.request.get('/api/profile/me')).status()).toBe(200)
