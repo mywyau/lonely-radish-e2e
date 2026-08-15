@@ -24,6 +24,13 @@ test('a received interest creates an in-app notification that can be marked read
     await expect(notice).toBeVisible()
     await notice.getByRole('button', { name: 'Mark read' }).click()
     await expect(notice.getByRole('button', { name: 'Mark read' })).toBeHidden()
+
+    await b.page.goto('/interests/received')
+    const interest = b.page.locator('article').filter({ hasText: memberA.name }).first()
+    await interest.getByRole('button', { name: 'Accept and match' }).click()
+    await b.page.getByRole('button', { name: 'Yes, match with them' }).click()
+    await b.page.goto('/notifications')
+    await expect(b.page.getByText(`${memberA.name} showed interest in meeting you.`)).toHaveCount(0)
   } finally {
     await Promise.allSettled([a.context.close(), b.context.close()])
     await resetRelationshipPair(memberA.id, memberB.id)

@@ -36,7 +36,8 @@ test.describe('match and date planning release journey', () => {
 
     try {
       await test.step('match the two synthetic members', async () => {
-        await createMatch(a.page, b.page, memberB, memberA.name)
+        // A deliberately accepts B's interest, so sending the first date plan is A's required action.
+        await createMatch(b.page, a.page, memberA, memberB.name)
       })
 
       await test.step('send a complete proposal using the browser UI', async () => {
@@ -49,8 +50,36 @@ test.describe('match and date planning release journey', () => {
         await a.page.getByLabel('UK postcode').fill('EC2Y 8DS')
         await a.page.getByLabel('Exact meeting point', { exact: false }).fill('Beside the box office')
         await a.page.getByLabel(/I confirm this is a public meeting place/i).check()
-        await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
+
+        let releaseSend!: () => void
+        let recordSendRequest!: () => void
+        const sendGate = new Promise<void>(resolve => { releaseSend = resolve })
+        const sendRequested = new Promise<void>(resolve => { recordSendRequest = resolve })
+        const sendEndpoint = /\/api\/proposals\/[^/]+\/send$/
+        await a.page.route(sendEndpoint, async route => {
+          recordSendRequest()
+          await sendGate
+          await route.continue()
+        })
+        const draftCreated = a.page.waitForResponse(response => response.request().method() === 'POST'
+          && new URL(response.url()).pathname === '/api/proposals')
+        const submit = a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
+        expect((await draftCreated).ok()).toBe(true)
+        await sendRequested
+
+        const whileDraft = await a.page.request.get('/api/matches')
+        expect(whileDraft.ok()).toBe(true)
+        expect((await whileDraft.json()).matches.find((match: { slug: string }) => match.slug === memberB.slug))
+          .toMatchObject({ yourMove: true })
+
+        releaseSend()
+        await submit
+        await a.page.unroute(sendEndpoint)
         await expect(a.page).toHaveURL(/\/matches$/)
+        const afterSend = await a.page.request.get('/api/matches')
+        expect(afterSend.ok()).toBe(true)
+        expect((await afterSend.json()).matches.find((match: { slug: string }) => match.slug === memberB.slug))
+          .toMatchObject({ yourMove: false })
         const matchCard = a.page.locator('article').filter({ hasText: memberB.name }).first()
         await expect(matchCard.getByText('Waiting for a response', { exact: true })).toBeVisible()
         await matchCard.getByRole('link', { name: 'Edit proposal' }).click()

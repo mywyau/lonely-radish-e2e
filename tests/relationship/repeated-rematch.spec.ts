@@ -15,12 +15,53 @@ async function sendInterest(page: Page, recipientSlug: string, recipientName: st
 }
 
 async function acceptInterest(page: Page, senderName: string) {
+  const received = page.waitForResponse(response => response.request().method() === 'GET'
+    && new URL(response.url()).pathname === '/api/interests/received')
   await page.goto('/interests/received')
+  const response = await received
+  expect(response.ok(), await response.text()).toBe(true)
   const card = page.locator('article').filter({ hasText: senderName }).first()
   await expect(card).toBeVisible()
-  await card.getByRole('button', { name: 'Accept and match' }).click()
-  await page.getByRole('button', { name: 'Yes, match with them' }).click()
-  await expect(page.getByText(new RegExp(`You matched with ${senderName}`, 'i'))).toBeVisible()
+  await card.getByRole('button', { name: /Accept and (?:match|reconnect)/ }).click()
+  await page.getByRole('button', { name: /Yes, (?:match with them|reconnect)/ }).click()
+  await expect(page.getByText(new RegExp(`You (?:matched|reconnected) with ${senderName}`, 'i'))).toBeVisible()
+}
+
+async function expectReconnectContext(page: Page, senderName: string, note: string) {
+  await page.goto('/matches/past')
+  const pastConnection = page.locator('article').filter({ hasText: senderName }).first()
+  await expect(pastConnection).toContainText(`Note received from ${senderName}`)
+  await expect(pastConnection).toContainText(note)
+  await expect(pastConnection).toContainText('Reconnect request pending')
+  await expect(pastConnection.getByRole('link', { name: 'Review reconnect request' })).toBeVisible()
+
+  await page.goto('/interests/received')
+  const request = page.locator('article').filter({ hasText: senderName }).first()
+  await expect(request).toContainText('Reconnect request')
+  await expect(request).toContainText(note)
+  await expect(request.getByRole('button', { name: 'Accept and reconnect' })).toBeVisible()
+  await expect(request.getByRole('button', { name: 'Do not reconnect' })).toBeVisible()
+}
+
+async function declineAndUndoReconnect(page: Page, senderName: string) {
+  const request = page.locator('article').filter({ hasText: senderName }).first()
+  const dialogPromise = page.waitForEvent('dialog')
+  const decline = request.getByRole('button', { name: 'Do not reconnect' }).click()
+  const dialog = await dialogPromise
+  expect(dialog.message()).toBe(`Decide not to reconnect with ${senderName}? You will have 30 seconds to undo.`)
+  await dialog.accept()
+  await decline
+
+  const undoNotice = page.getByRole('status').filter({
+    has: page.getByRole('button', { name: 'Undo' }),
+    hasText: `You chose not to reconnect with ${senderName}.`,
+  })
+  await expect(undoNotice).toBeVisible()
+  const restored = page.waitForResponse(response => response.request().method() === 'POST'
+    && /\/api\/interests\/[^/]+\/undo$/.test(new URL(response.url()).pathname))
+  await undoNotice.getByRole('button', { name: 'Undo' }).click()
+  expect((await restored).ok()).toBe(true)
+  await expect(request).toBeVisible()
 }
 
 async function removeMatch(page: Page, otherName: string) {
@@ -72,6 +113,9 @@ test.describe('repeated second-chance lifecycle', () => {
         await removeMatch(a.page, memberB.name)
         await sendApology(a.page, memberB.slug)
         await sendInterest(a.page, memberB.slug, memberB.name)
+        await expectReconnectContext(b.page,memberA.name,
+          'I am sorry for ending our match abruptly. I would still like to reconnect.')
+        await declineAndUndoReconnect(b.page,memberA.name)
         await acceptInterest(b.page, memberA.name)
       })
 
@@ -79,12 +123,15 @@ test.describe('repeated second-chance lifecycle', () => {
         await removeMatch(b.page, memberA.name)
         await sendApology(b.page, memberA.slug)
         await sendInterest(b.page, memberA.slug, memberA.name)
+        await expectReconnectContext(a.page,memberB.name,
+          'I am sorry for ending our match abruptly. I would still like to reconnect.')
         await acceptInterest(a.page, memberB.name)
       })
 
-      await expect(a.page.getByText(new RegExp(`You matched with ${memberB.name}`, 'i'))).toBeVisible()
+      await expect(a.page.getByText(new RegExp(`You (?:matched|reconnected) with ${memberB.name}`, 'i'))).toBeVisible()
     } finally {
       await Promise.allSettled([a.context.close(), b.context.close()])
+      await resetRelationshipPair(memberA.id, memberB.id)
     }
   })
 })

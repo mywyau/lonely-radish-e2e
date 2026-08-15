@@ -34,10 +34,14 @@ test('declining a date proposal notifies the sender and leaves the match open', 
     await a.page.getByLabel(/I confirm this is a public meeting place/i).check()
     await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
 
+    await b.page.goto('/notifications')
+    await expect(b.page.getByText(`${memberA.name} suggested a date plan.`)).toBeVisible()
     await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
     await b.page.getByRole('button', { name: 'Decline' }).click()
     await expect(b.page).toHaveURL(/\/matches$/)
     await expect(b.page.locator('article').filter({ hasText: memberA.name }).first()).toBeVisible()
+    await b.page.goto('/notifications')
+    await expect(b.page.getByText(`${memberA.name} suggested a date plan.`)).toHaveCount(0)
 
     await a.page.goto('/notifications')
     await expect(a.page.getByText(`${memberB.name} declined the proposed date plan.`)).toBeVisible()

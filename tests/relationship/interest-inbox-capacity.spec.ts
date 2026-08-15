@@ -8,7 +8,7 @@ import {
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 
-test('a full interest inbox accepts someone new after the recipient makes space', async ({ browser }) => {
+test('a full interest inbox queues someone new until the recipient makes space', async ({ browser }) => {
   test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
   const memberA = { id: env('E2E_MEMBER_A_ID'), name: env('E2E_MEMBER_A_NAME') }
   const memberB = { id: env('E2E_MEMBER_B_ID'), slug: env('E2E_MEMBER_B_SLUG') }
@@ -35,14 +35,19 @@ test('a full interest inbox accepts someone new after the recipient makes space'
       }
     })
 
-    await test.step('a sixth non-reciprocal interest is refused', async () => {
+    await test.step('a sixth non-reciprocal interest waits behind the visible five', async () => {
       const response = await attemptInterest()
-      expect(response.status()).toBe(409)
-      expect((await response.json()).statusMessage)
-        .toBe('This person is not accepting new interests right now')
+      expect(response.ok()).toBe(true)
+      expect(await response.json()).toMatchObject({ matched: false })
+
+      await b.page.reload()
+      await expect(b.page.getByText(/6 people are waiting for your answer/)).toBeVisible()
+      await expect(b.page.getByText(/1 more person is waiting/)).toBeVisible()
+      await expect(b.page.locator('article')).toHaveCount(5)
+      await expect(b.page.locator('article').filter({ hasText: memberA.name })).toHaveCount(0)
     })
 
-    await test.step('choosing not for me immediately makes the open place available', async () => {
+    await test.step('choosing not for me promotes the next waiting interest', async () => {
       const card = b.page.locator('article').filter({ hasText: fixtureNames[0] }).first()
       const dialogPromise = b.page.waitForEvent('dialog')
       const clickPromise = card.getByRole('button', { name: 'Not for me' }).click()
@@ -51,13 +56,9 @@ test('a full interest inbox accepts someone new after the recipient makes space'
       await clickPromise
       await expect(card).toBeHidden()
       await b.page.reload()
-      await expect(b.page.locator('article')).toHaveCount(4)
-      await expect(b.page.locator('article').filter({ hasText: memberA.name })).toHaveCount(0)
-
-      const response = await attemptInterest()
-      expect(response.ok()).toBe(true)
-      await b.page.reload()
       await expect(b.page.getByText(/5 people are waiting for your answer/)).toBeVisible()
+      await expect(b.page.locator('article')).toHaveCount(5)
+      await expect(b.page.locator('article').filter({ hasText: fixtureNames[0] })).toHaveCount(0)
       await expect(b.page.locator('article').filter({ hasText: memberA.name })).toBeVisible()
     })
   } finally {

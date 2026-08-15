@@ -60,6 +60,9 @@ test('a full connection list queues, explains, and promotes the oldest eligible 
       const sentBody = await sent.json()
       const queuedInterest = sentBody.interests?.find((interest: { slug: string }) => interest.slug === memberA.slug)
       expect(queuedInterest).toMatchObject({ queued: true })
+      await b.page.goto('/interests/sent')
+      await expect(b.page.locator('article').filter({ hasText: memberA.name }).first())
+        .toContainText('Matched — waiting for room in both connection lists')
     })
 
     await test.step('both members see why the match is waiting', async () => {
@@ -127,5 +130,24 @@ test('a full connection list queues, explains, and promotes the oldest eligible 
     await resetRelationshipPair(memberA.id, memberB.id)
     await clearMatchLimitFixtures(memberA.id)
     await configureEligibilityScenario(memberA.id, memberB.id, 'compatible')
+  }
+})
+
+test('blocking an active connection promotes the oldest eligible queued match', async ({ browser }) => {
+  test.skip(!hasLifecycleEnvironment(), 'Run npm run prepare:staging to create the lifecycle accounts')
+  const memberA = { id: env('E2E_MEMBER_A_ID') }
+  await clearMatchLimitFixtures(memberA.id)
+  const capacity = await seedMatchLimitFixtures(memberA.id,5,1)
+  const a = await openMember(browser, 'E2E_MEMBER_A_STATE')
+
+  try {
+    const blocked = await a.page.request.post(`/api/profiles/${capacity.active[0].slug}/block`)
+    expect(blocked.ok()).toBe(true)
+    const state = await matchLimitState(memberA.id,[capacity.queued[0].matchId])
+    expect(state.activeCount).toBe(5)
+    expect(state.statuses[capacity.queued[0].matchId]).toBe('active')
+  } finally {
+    await a.context.close()
+    await clearMatchLimitFixtures(memberA.id)
   }
 })

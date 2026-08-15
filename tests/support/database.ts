@@ -435,6 +435,55 @@ export async function agePendingInterest(
   }
 }
 
+export async function seedOlderClosedInterest(
+  senderId: string,
+  recipientId: string,
+): Promise<void> {
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query(`insert into daily_interests(
+      sender_id,recipient_id,sender_day,created_at,resolution,resolved_at
+    ) values($1,$2,current_date-30,now()-interval '30 days','expired',now()-interval '16 days')`,
+    [senderId,recipientId])
+  } finally {
+    await client.end()
+  }
+}
+
+export async function seedPastConnectionWithNewerUnconfirmedPlan(
+  userA: string,
+  userB: string,
+): Promise<void> {
+  await resetRelationshipPair(userA, userB)
+  assertStagingDatabaseTarget()
+  const client = databaseClient()
+  await client.connect()
+  try {
+    await client.query('begin')
+    const [userOne, userTwo] = [userA, userB].sort()
+    const match = await client.query(`insert into matches(
+      user_one_id,user_two_id,status,matched_at,ended_at,ended_by,ended_reason
+    ) values($1,$2,'unmatched',now()-interval '10 days',now()-interval '1 day',$3,'removed') returning id`,
+    [userOne,userTwo,userA])
+    await client.query(`insert into date_proposals(
+      match_id,inviter_id,invitee_id,activity_label,venue,status,confirmed_at,created_at
+    ) values($1,$2,$3,'Gallery visit','Tate Modern','accepted',now()-interval '8 days',now()-interval '9 days')`,
+    [match.rows[0].id,userA,userB])
+    await client.query(`insert into date_proposals(
+      match_id,inviter_id,invitee_id,activity_label,venue,status,created_at
+    ) values($1,$2,$3,'Coffee walk','Barbican Centre','pending',now()-interval '2 days')`,
+    [match.rows[0].id,userA,userB])
+    await client.query('commit')
+  } catch (error) {
+    await client.query('rollback')
+    throw error
+  } finally {
+    await client.end()
+  }
+}
+
 export type InterestLifecycleState = {
   resolution: string | null
   resolvedAt: string | null
@@ -453,7 +502,8 @@ export async function interestLifecycleState(
   await client.connect()
   try {
     const interest = await client.query(`select id,resolution,resolved_at::text as "resolvedAt"
-      from daily_interests where sender_id=$1 and recipient_id=$2`, [senderId,recipientId])
+      from daily_interests where sender_id=$1 and recipient_id=$2
+      order by created_at desc,id desc limit 1`, [senderId,recipientId])
     if (!interest.rows[0]) {
       throw new Error(`Interest not found for ${senderId} -> ${recipientId}`)
     }

@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import {
+  clearMatchLimitFixtures,
+  matchLimitState,
   postDateFixtureState,
   resetRelationshipPair,
+  seedMatchLimitFixtures,
   seedPastConfirmedDate,
   type PastConfirmedDateFixture,
 } from '../support/database.js'
@@ -89,6 +92,7 @@ test.describe('post-date private check-in', () => {
       await answerMeetAgain(a.page,fixture.proposalId,'yes',aliceNote)
       await expect(a.page.getByRole('heading', { name: 'Your choice is saved.' })).toBeVisible()
       await expect(a.page.getByText(`We’re waiting for ${bMember.name}`, { exact: false })).toBeVisible()
+      await expect(a.page.getByText('This connection remains open until they answer or either of you closes it.', { exact: false })).toBeVisible()
       const privateResult = await a.page.request.get(`/api/dates/${fixture.proposalId}/follow-up`)
       expect(privateResult.ok()).toBe(true)
       expect(await privateResult.json()).toMatchObject({
@@ -162,6 +166,34 @@ test.describe('post-date private check-in', () => {
       expect((await postDateFixtureState(fixture)).matchStatus).toBe('active')
     } finally {
       await closeSessionsAndReset([a,b],aMember.id,bMember.id)
+    }
+  })
+
+  test('closing after different answers promotes the oldest eligible queued match', async ({ browser }) => {
+    const aMember = memberA()
+    const bMember = memberB()
+    await clearMatchLimitFixtures(aMember.id)
+    const capacity = await seedMatchLimitFixtures(aMember.id,4,1)
+    const fixture = await seedPastConfirmedDate(aMember.id,bMember.id)
+    const a = await openMember(browser, 'E2E_MEMBER_A_STATE')
+    const b = await openMember(browser, 'E2E_MEMBER_B_STATE')
+
+    try {
+      const firstAnswer = await a.page.request.post(`/api/dates/${fixture.proposalId}/follow-up`, {
+        data: { meetAgain: true, message: 'I would be open to another date.' },
+      })
+      expect(firstAnswer.ok()).toBe(true)
+      const closingAnswer = await b.page.request.post(`/api/dates/${fixture.proposalId}/follow-up`, {
+        data: { meetAgain: false, message: 'Thank you for meeting me.' },
+      })
+      expect(closingAnswer.ok()).toBe(true)
+
+      const state = await matchLimitState(aMember.id,[capacity.queued[0].matchId])
+      expect(state.activeCount).toBe(5)
+      expect(state.statuses[capacity.queued[0].matchId]).toBe('active')
+    } finally {
+      await closeSessionsAndReset([a,b],aMember.id,bMember.id)
+      await clearMatchLimitFixtures(aMember.id)
     }
   })
 })

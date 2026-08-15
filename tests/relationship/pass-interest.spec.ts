@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { resetRelationshipPair } from '../support/database.js'
+import { interestLifecycleState, resetRelationshipPair, waitForNotification } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
 import { openMember } from '../support/member.js'
 
@@ -18,6 +18,7 @@ test('a recipient can undo an accidental not-for-me decision before making it fi
       a.page.once('dialog', dialog => dialog.accept())
       await button.click()
       await expect(a.page.getByText(new RegExp(`Interest sent to ${memberB.name}`, 'i'))).toBeVisible()
+      await waitForNotification(memberB.id,memberA.id,'interest_received')
     })
 
     await test.step('B chooses not for me and restores the interest from the undo notice', async () => {
@@ -42,6 +43,9 @@ test('a recipient can undo an accidental not-for-me decision before making it fi
       expect((await restored).ok()).toBe(true)
       await expect(card).toBeVisible()
       await expect(b.page.getByText(`${memberA.name} is back in your interests.`)).toBeVisible()
+      expect(await interestLifecycleState(memberA.id,memberB.id)).toMatchObject({
+        resolution: null, hasNotification: true,
+      })
     })
 
     await test.step('a second decision persists after leaving the page', async () => {
@@ -51,6 +55,13 @@ test('a recipient can undo an accidental not-for-me decision before making it fi
       await expect(card).toBeHidden()
       await b.page.reload()
       await expect(b.page.locator('article').filter({ hasText: memberA.name })).toHaveCount(0)
+      expect(await interestLifecycleState(memberA.id,memberB.id)).toMatchObject({
+        resolution: 'passed', hasNotification: false,
+      })
+
+      await a.page.goto(`/profiles/${memberB.slug}`)
+      await expect(a.page.getByRole('button', { name: 'Interest closed' })).toBeVisible()
+      await expect(a.page.getByText(`${memberB.name} didn’t take this interest further.`)).toBeVisible()
     })
   } finally {
     await Promise.allSettled([a.context.close(), b.context.close()])

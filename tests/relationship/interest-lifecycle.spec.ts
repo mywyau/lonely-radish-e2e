@@ -3,6 +3,7 @@ import {
   agePendingInterest,
   interestLifecycleState,
   resetRelationshipPair,
+  seedOlderClosedInterest,
   waitForNotification,
 } from '../support/database.js'
 import { env, hasLifecycleEnvironment } from '../support/env.js'
@@ -82,12 +83,14 @@ test('a sender can withdraw a pending interest and both histories explain what h
       const state = await interestLifecycleState(memberA.id,memberB.id)
       expect(state).toMatchObject({ resolution: 'withdrawn', pendingCount: 0, hasNotification: false })
       expect(state.resolvedAt).not.toBeNull()
+      await seedOlderClosedInterest(memberA.id, memberB.id)
     })
 
     await test.step('the recipient can report and block from the non-actionable history entry', async () => {
       await b.page.goto('/interests/received')
-      await expect(b.page.getByRole('heading', { name: 'Earlier interest' })).toBeVisible()
+      await expect(b.page.getByRole('heading', { name: 'Expired or withdrawn interests' })).toBeVisible()
       const card = b.page.locator('article').filter({ hasText: memberA.name }).first()
+      await expect(b.page.locator('article').filter({ hasText: memberA.name })).toHaveCount(1)
       await expect(card).toContainText(`${memberA.name} took this back`)
       await expect(card.getByRole('button', { name: /Accept and match|Not for me/ })).toHaveCount(0)
       await expect(card.getByRole('link', { name: 'View profile' })).toBeVisible()

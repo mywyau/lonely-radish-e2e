@@ -16,6 +16,7 @@ test('a member can manage notification history and email subscriptions', async (
 
   try {
     await a.page.goto('/notifications')
+    await expect(a.page.getByText('Email settings don’t affect which relevant updates appear here.')).toBeVisible()
     await expect(a.page.getByText(`${memberB.name} showed interest in meeting you.`, { exact: true })).toBeVisible()
     await expect(a.page.getByText(`You and ${memberB.name} matched.`, { exact: true })).toBeVisible()
 
