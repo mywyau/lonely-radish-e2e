@@ -8,11 +8,18 @@ import { chooseCustomProposalTime } from '../support/planning.js'
 async function createMatch(sender: Page, receiver: Page, recipient: { slug: string; name: string }, senderName: string) {
   await sender.goto(`/profiles/${recipient.slug}`)
   sender.once('dialog', dialog => dialog.accept())
+  const interestCreated = sender.waitForResponse(response =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/interests')
   await sender.getByRole('button', { name: new RegExp(`Show interest(?: in ${recipient.name})?`, 'i') }).click()
+  expect((await interestCreated).ok()).toBe(true)
   await receiver.goto('/interests/received')
   const card = receiver.locator('article').filter({ hasText: senderName }).first()
   await card.getByRole('button', { name: 'Accept and match' }).click()
+  const interestAccepted = receiver.waitForResponse(response =>
+    response.request().method() === 'POST'
+    && /^\/api\/interests\/[^/]+\/accept$/.test(new URL(response.url()).pathname))
   await receiver.getByRole('button', { name: 'Yes, match with them' }).click()
+  expect((await interestAccepted).ok()).toBe(true)
 }
 
 test('declining a date proposal notifies the sender and leaves the match open', async ({ browser }) => {
@@ -32,7 +39,11 @@ test('declining a date proposal notifies the sender and leaves the match open', 
     await a.page.getByLabel('Public address').fill('Silk Street, London')
     await a.page.getByLabel('UK postcode').fill('EC2Y 8DS')
     await a.page.getByLabel(/I confirm this is a public meeting place/i).check()
+    const proposalSent = a.page.waitForResponse(response =>
+      response.request().method() === 'POST'
+      && /^\/api\/proposals\/[^/]+\/send$/.test(new URL(response.url()).pathname))
     await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
+    expect((await proposalSent).ok()).toBe(true)
 
     await b.page.goto('/notifications')
     await expect(b.page.getByText(`${memberA.name} suggested a date plan.`)).toBeVisible()

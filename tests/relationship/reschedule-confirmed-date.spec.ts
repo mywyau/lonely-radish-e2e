@@ -14,7 +14,11 @@ async function createMatch(sender: Page, receiver: Page, recipient: { slug: stri
   await receiver.goto('/interests/received')
   const card = receiver.locator('article').filter({ hasText: senderName }).first()
   await card.getByRole('button', { name: 'Accept and match' }).click()
+  const interestAccepted = receiver.waitForResponse(response =>
+    response.request().method() === 'POST'
+    && /^\/api\/interests\/[^/]+\/accept$/.test(new URL(response.url()).pathname))
   await receiver.getByRole('button', { name: 'Yes, match with them' }).click()
+  expect((await interestAccepted).ok()).toBe(true)
   await expect(receiver.getByText(new RegExp(`You matched with ${senderName}`, 'i'))).toBeVisible()
 }
 
@@ -41,7 +45,11 @@ test('a confirmed date stays in place until both members accept its replacement'
       await createMatch(a.page, b.page, memberB, memberA.name)
       await gotoPlanningRoom(a.page, `/plans/${memberB.slug}?new=1`)
       await fillProposal(a.page, 'Pottery painting', 14, 'Barbican Centre', 'Beside the box office')
+      const proposalSent = a.page.waitForResponse(response =>
+        response.request().method() === 'POST'
+        && /^\/api\/proposals\/[^/]+\/send$/.test(new URL(response.url()).pathname))
       await a.page.getByRole('button', { name: `Confirm and send to ${memberB.name}` }).click()
+      expect((await proposalSent).ok()).toBe(true)
       await gotoPlanningRoom(b.page, `/plans/${memberA.slug}`)
       await b.page.getByRole('button', { name: 'Accept proposal' }).click()
       const confirmed = b.page.getByText('Confirmed date', { exact: true }).locator('xpath=ancestor::section[1]')

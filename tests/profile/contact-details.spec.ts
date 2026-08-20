@@ -6,11 +6,18 @@ import { openMember } from '../support/member.js'
 async function createMatch(sender: Page, receiver: Page, recipient: { slug: string; name: string }, senderName: string) {
   await sender.goto(`/profiles/${recipient.slug}`)
   sender.once('dialog', dialog => dialog.accept())
+  const interestCreated = sender.waitForResponse(response =>
+    response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/interests')
   await sender.getByRole('button', { name: new RegExp(`Show interest(?: in ${recipient.name})?`, 'i') }).click()
+  expect((await interestCreated).ok()).toBe(true)
   await receiver.goto('/interests/received')
   const card = receiver.locator('article').filter({ hasText: senderName }).first()
   await card.getByRole('button', { name: 'Accept and match' }).click()
+  const interestAccepted = receiver.waitForResponse(response =>
+    response.request().method() === 'POST'
+    && /^\/api\/interests\/[^/]+\/accept$/.test(new URL(response.url()).pathname))
   await receiver.getByRole('button', { name: 'Yes, match with them' }).click()
+  expect((await interestAccepted).ok()).toBe(true)
   await expect(receiver.getByText(new RegExp(`You matched with ${senderName}`, 'i'))).toBeVisible()
 }
 
